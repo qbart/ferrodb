@@ -1,6 +1,6 @@
 # FerroDB
 
-[![logo](./res/ferrodb.svg)]
+<img src="./res/ferrodb.svg" width="64" />
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/qbart/krab)](https://goreportcard.com/report/github.com/qbart/ferrodb)
 [![Last commit](https://img.shields.io/github/last-commit/qbart/ferrodb)](https://github.com/qbart/ferrodb/commits/master)
