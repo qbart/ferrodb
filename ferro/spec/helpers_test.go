@@ -185,7 +185,7 @@ func (m *cliMock) setup(args []string) {
 	}
 }
 
-func (m *cliMock) RefuteRun(args ...string) bool {
+func (m *cliMock) AssertNotRun(args ...string) bool {
 	m.setup(args)
 	m.exitCode = m.app.Run(append([]string{"ferro"}, args...))
 

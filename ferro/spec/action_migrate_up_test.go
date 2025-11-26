@@ -82,7 +82,6 @@ spec:
 	// TODO:
 	// - check if table exists
 	// - check if table does not exists
-	// - fix english with asserts Contains? NotContain? be consistent
 
 	// cli.AssertRecordsCount("test", "public", 0)
 	// ...
