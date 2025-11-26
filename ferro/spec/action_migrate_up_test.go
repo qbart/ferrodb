@@ -83,17 +83,11 @@ spec:
 	// - check if table exists
 	// - check if table does not exists
 
-	// cli.AssertRecordsCount("test", "public", 0)
-	// ...
-	// cli.AssertRecordsCount("test", "public", 1)
-
-	// audit := cli.UseAudit("test", "public")
-	// ...
-	// audit.AssertEvent(1, "pending")
-
-	// query := cli.UseQuery("test", "public")
-	// query.AssertTableExists("animals")
-	// query.AssertCount("table", 1)
+    // data := cli.Data("test", "public")
+    // data.AssertRowCount("animals", 1)
+    // data.AssertTableExists("animals")
+    // data.AssertTableNotExists("animals")
+    // data
 }
 
 // func TestActionMigrateUpWithError(t *testing.T) {
