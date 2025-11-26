@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
-	"github.com/ohkrab/krab/views"
+	"github.com/qbart/ferrodb/views"
 )
 
 type Renderer struct {

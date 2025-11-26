@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 // TestExampleIt represents one use case for test example that contain queries and assertions.

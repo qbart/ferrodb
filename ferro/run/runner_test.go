@@ -5,10 +5,10 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/fmtx"
-	"github.com/ohkrab/krab/plugins"
-	"github.com/ohkrab/krab/tpls"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/fmtx"
+	"github.com/qbart/ferrodb/plugins"
+	"github.com/qbart/ferrodb/tpls"
 	"github.com/qbart/expecto/expecto"
 )
 

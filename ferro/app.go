@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/run"
-	"github.com/ohkrab/krab/ferro/run/generators"
-	"github.com/ohkrab/krab/fmtx"
-	"github.com/ohkrab/krab/plugins"
-	"github.com/ohkrab/krab/tpls"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/run"
+	"github.com/qbart/ferrodb/ferro/run/generators"
+	"github.com/qbart/ferrodb/fmtx"
+	"github.com/qbart/ferrodb/plugins"
+	"github.com/qbart/ferrodb/tpls"
 	"github.com/urfave/cli/v3"
 )
 

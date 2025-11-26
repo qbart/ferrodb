@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/ohkrab/krab/krabdb"
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabdb"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 // DDLReferences DSL for ForeignKey.

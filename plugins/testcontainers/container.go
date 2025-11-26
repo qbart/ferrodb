@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
-	"github.com/ohkrab/krab/fmtx"
+	"github.com/qbart/ferrodb/fmtx"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )

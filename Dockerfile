@@ -1,6 +1,6 @@
 FROM golang:1.21.4-alpine3.18 AS build
 
-LABEL org.opencontainers.image.source https://github.com/ohkrab/krab
+LABEL org.opencontainers.image.source https://github.com/qbart/ferrodb
 
 WORKDIR /src
 COPY go.* ./
@@ -19,7 +19,7 @@ COPY . ./
 RUN go install github.com/a-h/templ/cmd/templ@latest
 RUN templ generate
 RUN go build \
-  -ldflags="-s -w -X 'github.com/ohkrab/krab/krab.InfoVersion=$BUILD_VERSION' -X 'github.com/ohkrab/krab/krab.InfoCommit=$BUILD_COMMIT' -X 'github.com/ohkrab/krab/krab.InfoBuildDate=$BUILD_DATE'" \
+  -ldflags="-s -w -X 'github.com/qbart/ferrodb/krab.InfoVersion=$BUILD_VERSION' -X 'github.com/qbart/ferrodb/krab.InfoCommit=$BUILD_COMMIT' -X 'github.com/qbart/ferrodb/krab.InfoBuildDate=$BUILD_DATE'" \
   -o /tmp/krab .
 
 FROM alpine:3.18

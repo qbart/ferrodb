@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/plugin"
-	"github.com/ohkrab/krab/fmtx"
-	"github.com/ohkrab/krab/plugins"
-	"github.com/ohkrab/krab/tpls"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/plugin"
+	"github.com/qbart/ferrodb/fmtx"
+	"github.com/qbart/ferrodb/plugins"
+	"github.com/qbart/ferrodb/tpls"
 )
 
 type Runner struct {

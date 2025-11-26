@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/plugin"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/plugin"
 )
 
 var ErrDriverNotSelected = errors.New("driver not selected")

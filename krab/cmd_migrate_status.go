@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/emirpasic/gods/sets/hashset"
-	"github.com/ohkrab/krab/krabdb"
-	"github.com/ohkrab/krab/krabhcl"
-	"github.com/ohkrab/krab/krabtpl"
-	"github.com/ohkrab/krab/tpls"
+	"github.com/qbart/ferrodb/krabdb"
+	"github.com/qbart/ferrodb/krabhcl"
+	"github.com/qbart/ferrodb/krabtpl"
+	"github.com/qbart/ferrodb/tpls"
 	"github.com/pkg/errors"
 )
 

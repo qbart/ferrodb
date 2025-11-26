@@ -1,4 +1,4 @@
-module github.com/ohkrab/krab
+module github.com/qbart/ferrodb
 
 go 1.25.4
 

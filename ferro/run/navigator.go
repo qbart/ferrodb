@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/plugin"
-	"github.com/ohkrab/krab/fmtx"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/plugin"
+	"github.com/qbart/ferrodb/fmtx"
 )
 
 // Navigator abstracts the flow of the driver.

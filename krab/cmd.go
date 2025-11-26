@@ -3,7 +3,7 @@ package krab
 import (
 	"context"
 
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 // Cmd is a command that app can execute.

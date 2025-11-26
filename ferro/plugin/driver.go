@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ohkrab/krab/ferro/config"
+	"github.com/qbart/ferrodb/ferro/config"
 )
 
 const (

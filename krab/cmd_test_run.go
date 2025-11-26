@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ohkrab/krab/krabdb"
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabdb"
+	"github.com/qbart/ferrodb/krabhcl"
 	"github.com/wzshiming/ctc"
 )
 

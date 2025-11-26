@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/plugin"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/plugin"
 )
 
 type SQLiteDriver struct {

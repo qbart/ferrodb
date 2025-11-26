@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 type Argument struct {

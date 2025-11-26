@@ -3,8 +3,8 @@ package run
 import (
 	"fmt"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/plugins"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/plugins"
 )
 
 type Builder struct {

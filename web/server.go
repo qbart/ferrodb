@@ -12,12 +12,12 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
-	"github.com/ohkrab/krab/krab"
-	"github.com/ohkrab/krab/krabdb"
-	"github.com/ohkrab/krab/krabenv"
-	"github.com/ohkrab/krab/krabhcl"
-	"github.com/ohkrab/krab/views"
-	"github.com/ohkrab/krab/web/dto"
+	"github.com/qbart/ferrodb/krab"
+	"github.com/qbart/ferrodb/krabdb"
+	"github.com/qbart/ferrodb/krabenv"
+	"github.com/qbart/ferrodb/krabhcl"
+	"github.com/qbart/ferrodb/views"
+	"github.com/qbart/ferrodb/web/dto"
 )
 
 type Server struct {

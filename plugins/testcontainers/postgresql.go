@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/plugin"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/plugin"
 )
 
 type TestContainerPostgreSQLDriver struct {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ohkrab/krab/krabdb"
+	"github.com/qbart/ferrodb/krabdb"
 )
 
 const DefaultSchemaMigrationTableName = "schema_migrations"

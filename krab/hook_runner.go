@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/ohkrab/krab/krabdb"
+	"github.com/qbart/ferrodb/krabdb"
 )
 
 type HookRunner struct {

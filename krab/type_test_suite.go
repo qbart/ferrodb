@@ -1,7 +1,7 @@
 package krab
 
 import (
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 // TestSuite represents test runner configuration.

@@ -3,8 +3,8 @@ package plugins
 import (
 	"fmt"
 
-	"github.com/ohkrab/krab/ferro/plugin"
-	"github.com/ohkrab/krab/plugins/testcontainers"
+	"github.com/qbart/ferrodb/ferro/plugin"
+	"github.com/qbart/ferrodb/plugins/testcontainers"
 )
 
 type Registry struct {

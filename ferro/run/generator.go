@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/ferro/run/generators"
-	"github.com/ohkrab/krab/tpls"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/run/generators"
+	"github.com/qbart/ferrodb/tpls"
 )
 
 type Generator struct {

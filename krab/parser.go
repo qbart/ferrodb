@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl2/hclparse"
-	"github.com/ohkrab/krab/krabenv"
-	"github.com/ohkrab/krab/krabfn"
+	"github.com/qbart/ferrodb/krabenv"
+	"github.com/qbart/ferrodb/krabfn"
 	"github.com/spf13/afero"
 )
 

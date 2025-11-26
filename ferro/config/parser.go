@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ohkrab/krab/fmtx"
+	"github.com/qbart/ferrodb/fmtx"
 	"gopkg.in/yaml.v3"
 )
 

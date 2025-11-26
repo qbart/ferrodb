@@ -40,11 +40,11 @@ test:
 .PHONY: docker_test
 docker_test:
 	docker run --rm -e DATABASE_URL="postgres://krab:secret@localhost:5432/krab?sslmode=disable" \
-		-v ${HOME}/oh/krab/test/fixtures/simple:/etc/krab:ro ohkrab/krab-cli:${BUILD_VERSION} version
+		-v ${HOME}/oh/krab/test/fixtures/simple:/etc/krab:ro qbart/ferrodb-cli:${BUILD_VERSION} version
 
 .PHONY: docker_build
 docker_build:
-	docker build -t ohkrab/krab:${BUILD_VERSION} \
+	docker build -t qbart/ferrodb:${BUILD_VERSION} \
 		--build-arg BUILD_VERSION=${BUILD_VERSION} \
 		--build-arg BUILD_COMMIT=${BUILD_COMMIT} \
 		--build-arg BUILD_DATE=${BUILD_DATE} \
@@ -52,19 +52,19 @@ docker_build:
 
 .PHONY: docker_push
 docker_push:
-	docker tag ohkrab/krab:${BUILD_VERSION} ohkrab/krab:latest
-	docker push ohkrab/krab:${BUILD_VERSION}
-	docker push ohkrab/krab:latest
+	docker tag qbart/ferrodb:${BUILD_VERSION} qbart/ferrodb:latest
+	docker push qbart/ferrodb:${BUILD_VERSION}
+	docker push qbart/ferrodb:latest
 
 .PHONY: docker_nightly
 docker_nightly:
-	docker build -t ohkrab/krab:nightly \
+	docker build -t qbart/ferrodb:nightly \
 		--build-arg BUILD_VERSION=nightly \
 		--build-arg BUILD_COMMIT=$$( git log -1 --pretty="format:%h" ) \
 		--build-arg BUILD_DATE=$$( date -u +"%Y-%m-%dT%H:%M:%SZ" ) \
 		.
-	docker tag ohkrab/krab:nightly ohkrab/krab:latest
-	docker push ohkrab/krab:nightly
+	docker tag qbart/ferrodb:nightly qbart/ferrodb:latest
+	docker push qbart/ferrodb:nightly
 
 .PHONY: changelog
 changelog:

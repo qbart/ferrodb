@@ -6,9 +6,9 @@ import (
 
 	_ "github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/ohkrab/krab/ferro"
-	"github.com/ohkrab/krab/ferro/config"
-	"github.com/ohkrab/krab/fmtx"
+	"github.com/qbart/ferrodb/ferro"
+	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/fmtx"
 )
 
 var (

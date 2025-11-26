@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 // CmdVersion returns version information.

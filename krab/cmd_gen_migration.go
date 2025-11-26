@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ohkrab/krab/krabenv"
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabenv"
+	"github.com/qbart/ferrodb/krabhcl"
 	"github.com/spf13/afero"
 )
 

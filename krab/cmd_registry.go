@@ -1,8 +1,8 @@
 package krab
 
 import (
-	"github.com/ohkrab/krab/krabdb"
-	"github.com/ohkrab/krab/krabenv"
+	"github.com/qbart/ferrodb/krabdb"
+	"github.com/qbart/ferrodb/krabenv"
 	"github.com/spf13/afero"
 )
 

@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/ohkrab/krab/krabhcl"
+	"github.com/qbart/ferrodb/krabhcl"
 )
 
 // DDLIdentity DSL.

@@ -5,7 +5,7 @@ before:
 builds:
   -
     ldflags:
-      - -s -w -X github.com/ohkrab/krab/krab.InfoVersion={{.Version}} -X github.com/ohkrab/krab/krab.InfoCommit={{.Commit}} -X github.com/ohkrab/krab/krab.InfoBuildDate={{.Date}}
+      - -s -w -X github.com/qbart/ferrodb/krab.InfoVersion={{.Version}} -X github.com/qbart/ferrodb/krab.InfoCommit={{.Commit}} -X github.com/qbart/ferrodb/krab.InfoBuildDate={{.Date}}
     goos:
       - linux
       - darwin
