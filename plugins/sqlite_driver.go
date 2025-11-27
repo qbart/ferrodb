@@ -60,6 +60,10 @@ func (q *SQLiteDriverQuery) Exec(ctx context.Context, query string, args ...any)
     return fmt.Errorf("not implemented")
 }
 
+func (q *SQLiteDriverQuery) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func (q *SQLiteDriverQuery) Begin(ctx context.Context) (plugin.DriverQuery, error) {
     return nil, fmt.Errorf("not implemented")
 }

@@ -3,6 +3,7 @@ package plugins
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/qbart/ferrodb/ferro/config"
 	"github.com/qbart/ferrodb/ferro/plugin"
@@ -62,6 +63,10 @@ type NullDriverQuery struct {}
 
 func (q *NullDriverQuery) Exec(ctx context.Context, query string, args ...any) error {
     return ErrDriverNotSelected
+}
+
+func (q *NullDriverQuery) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (q *NullDriverQuery) Begin(ctx context.Context) (plugin.DriverQuery, error) {

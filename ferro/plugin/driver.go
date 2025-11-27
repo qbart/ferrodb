@@ -114,4 +114,8 @@ type DriverQuery interface {
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error
 	Exec(ctx context.Context, query string, args ...any) error
+	Query(ctx context.Context, query string, args ...any) (*DriverQueryResult, error)
+}
+
+type DriverQueryResult struct {
 }

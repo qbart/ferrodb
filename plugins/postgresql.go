@@ -258,6 +258,10 @@ func (q *PostgreSQLQuery) Exec(ctx context.Context, query string, args ...any) e
 	return nil
 }
 
+func (q *PostgreSQLQuery) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func (q *PostgreSQLQuery) Begin(ctx context.Context) (plugin.DriverQuery, error) {
 	tx, err := q.conn.Conn.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
