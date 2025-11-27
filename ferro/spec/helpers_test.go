@@ -345,7 +345,7 @@ func (d *assertData) AssertTableExists(name string) {
 	}
 	defer close()
 
-    err = conn.Query(d.execCtx).Exec(context.Background(), "invalid query")
+    result, err := conn.Query(d.execCtx).Query(context.Background(), "SELECT 1")
 	if err != nil {
 		d.T.Fatalf("failed to check if table exists: %v", err)
 	}
@@ -358,7 +358,7 @@ func (d *assertData) AssertTableNotExists(name string) {
 	}
 	defer close()
 
-    err = conn.Query(d.execCtx).Exec(context.Background(), "invalid query")
+    result, err := conn.Query(d.execCtx).Query(context.Background(), "SELECT 1")
 	if err != nil {
 		d.T.Fatalf("failed to check if table exists: %v", err)
 	}

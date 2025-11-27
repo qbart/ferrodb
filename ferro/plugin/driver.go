@@ -118,4 +118,6 @@ type DriverQuery interface {
 }
 
 type DriverQueryResult struct {
+	AffectedRows int64
+	Rows         [][]any
 }

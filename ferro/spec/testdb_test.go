@@ -3,6 +3,7 @@ package spec
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	_ "github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -99,6 +100,11 @@ func (t *mockTransaction) Exec(ctx context.Context, query string, args ...any) e
 	return t.tx.Exec(ctx, query, args...)
 }
 
+func (t *mockTransaction) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
+	*t.recorder = append(*t.recorder, query)
+	return t.tx.Query(ctx, query, args...)
+}
+
 type mockNullTransaction struct {
 	tx       plugin.DriverQuery
 	recorder *[]string
@@ -120,3 +126,9 @@ func (t *mockNullTransaction) Exec(ctx context.Context, query string, args ...an
 	*t.recorder = append(*t.recorder, query)
 	return t.tx.Exec(ctx, query, args...)
 }
+
+func (t *mockNullTransaction) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
+	*t.recorder = append(*t.recorder, query)
+    return nil, fmt.Errorf("not implemented")
+}
+

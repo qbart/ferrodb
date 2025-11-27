@@ -251,7 +251,7 @@ func (q *PostgreSQLQuery) Exec(ctx context.Context, query string, args ...any) e
 	} else {
 		_, err := q.conn.Conn.Exec(ctx, query, args...)
 		if err != nil {
-            return fmt.Errorf("failed to execute query: %w", err)
+			return fmt.Errorf("failed to execute query: %w", err)
 		}
 	}
 
@@ -259,7 +259,27 @@ func (q *PostgreSQLQuery) Exec(ctx context.Context, query string, args ...any) e
 }
 
 func (q *PostgreSQLQuery) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	rows, err := q.conn.Conn.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch query: %w", err)
+	}
+
+	result := &plugin.DriverQueryResult{
+		AffectedRows: 0,
+		Rows:         make([][]any, 0),
+	}
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, fmt.Errorf("failed to row scan: %w", err)
+		}
+
+        result.Rows = append(result.Rows, values)
+	}
+	result.AffectedRows = rows.CommandTag().RowsAffected()
+	defer rows.Close()
+
+	return result, nil
 }
 
 func (q *PostgreSQLQuery) Begin(ctx context.Context) (plugin.DriverQuery, error) {
