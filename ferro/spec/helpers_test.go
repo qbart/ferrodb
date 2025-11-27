@@ -212,30 +212,30 @@ func (m *cliMock) AssertNotRun(args ...string) bool {
 	return assert.Greater(m.T, m.exitCode, 0, "Exit code should be greather than 0")
 }
 
-func (m *cliMock) AssertOutputContains(t *testing.T, output string) bool {
+func (m *cliMock) AssertOutputContains(output string) bool {
 	s := fmtx.StripANSI(m.stdout.String())
 	s = fmtx.Squish(s)
 	val := assert.Contains(
-		t,
+		m.T,
 		strings.TrimSpace(s),
 		strings.TrimSpace(output),
 		"Output mismatch",
 	)
 	if !val {
-		t.Fatalf("Captured:\n%s", m.stdout.String())
+		m.T.Fatalf("Captured:\n%s", m.stdout.String())
 	}
 	return val
 }
 
-func (m *cliMock) AssertOutputNotContains(t *testing.T, output string) bool {
+func (m *cliMock) AssertOutputNotContains(output string) bool {
 	val := assert.NotContains(
-		t,
+		m.T,
 		strings.TrimSpace(fmtx.StripANSI(m.stdout.String())),
 		strings.TrimSpace(output),
 		"Output mismatch",
 	)
 	if !val {
-		t.Fatalf("Captured:\n%s", m.stdout.String())
+		m.T.Fatalf("Captured:\n%s", m.stdout.String())
 	}
 	return val
 }
@@ -345,9 +345,30 @@ func (d *assertData) AssertTableExists(name string) {
 	}
 	defer close()
 
-    result, err := conn.Query(d.execCtx).Query(context.Background(), "SELECT 1")
+    schema := d.execCtx.Schema
+    if schema == "" {
+        schema = "public"
+    }
+
+	q := `
+SELECT EXISTS (
+  SELECT 1
+  FROM information_schema.tables
+  WHERE table_schema = $1
+    AND table_name = $2
+);
+    `
+	result, err := conn.Query(d.execCtx).Query(context.Background(), q, schema, d.execCtx.Prefix+name)
 	if err != nil {
 		d.T.Fatalf("failed to check if table exists: %v", err)
+	}
+	if result.AffectedRows != 1 {
+		d.T.Fatalf("query returned invalid number of rows")
+	}
+
+	exists := result.Rows[0][0].(bool)
+	if !exists {
+		d.T.Fatalf("table `%s` does not exist but it should", name)
 	}
 }
 
@@ -358,8 +379,29 @@ func (d *assertData) AssertTableNotExists(name string) {
 	}
 	defer close()
 
-    result, err := conn.Query(d.execCtx).Query(context.Background(), "SELECT 1")
+    schema := d.execCtx.Schema
+    if schema == "" {
+        schema = "public"
+    }
+
+	q := `
+SELECT EXISTS (
+  SELECT 1
+  FROM information_schema.tables
+  WHERE table_schema = $1
+    AND table_name = $2
+);
+`
+	result, err := conn.Query(d.execCtx).Query(context.Background(), q, schema, d.execCtx.Prefix+name)
 	if err != nil {
-		d.T.Fatalf("failed to check if table exists: %v", err)
+        d.T.Fatalf("failed to check if table exists: %v", err)
+	}
+	if result.AffectedRows != 1 {
+		d.T.Fatalf("query returned invalid number of rows")
+	}
+
+	exists := result.Rows[0][0].(bool)
+	if exists {
+		d.T.Fatalf("table `%s` exists but it should not", name)
 	}
 }

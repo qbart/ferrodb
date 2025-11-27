@@ -41,23 +41,23 @@ spec:
 	)
 
 	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
-	cli.AssertOutputContains(t, "pending v1 create_animals")
+	cli.AssertOutputContains("pending v1 create_animals")
 	cli.ResetAllOutputs()
 
-    data := cli.Data("test", "public")
-    data.AssertTableNotExists("animals")
+	data := cli.Data("test", "public")
+	data.AssertTableNotExists("animals")
 
 	cli.AssertRun("migrate", "up", "--driver", "test", "--set", "public")
-	cli.AssertOutputNotContains(t, "No pending migrations")
-	cli.AssertOutputContains(t, "Applied successfully")
+	cli.AssertOutputNotContains("No pending migrations")
+	cli.AssertOutputContains("Applied successfully")
 	cli.ResetAllOutputs()
 
 	cli.AssertRun("migrate", "up", "--driver", "test", "--set", "public")
-	cli.AssertOutputContains(t, "No pending migrations")
+	cli.AssertOutputContains("No pending migrations")
 	cli.ResetAllOutputs()
 
 	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
-	cli.AssertOutputContains(t, "completed v1 create_animals")
+	cli.AssertOutputContains("completed v1 create_animals")
 	cli.ResetAllOutputs()
 
 	audit := cli.Audit("test", "public")
@@ -82,10 +82,10 @@ spec:
 		},
 		Metadata: map[string]any{},
 	})
-    data.AssertTableExists("animals")
+	data.AssertTableExists("animals")
 
 	cli.AssertRun("migrate", "down", "--driver", "test", "--set", "public", "--version", "v1")
-	cli.AssertOutputContains(t, "Migration v1 rolled back successfully")
+	cli.AssertOutputContains("Migration v1 rolled back successfully")
 	cli.ResetAllOutputs()
 
 	audit = cli.Audit("test", "public")
@@ -130,10 +130,10 @@ spec:
 		},
 		Metadata: map[string]any{},
 	})
-    data.AssertTableNotExists("animals")
+	data.AssertTableNotExists("animals")
 
 	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
-	cli.AssertOutputContains(t, "pending v1 create_animals")
+	cli.AssertOutputContains("pending v1 create_animals")
 	cli.ResetAllOutputs()
 }
 
