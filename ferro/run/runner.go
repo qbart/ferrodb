@@ -110,12 +110,12 @@ func (r *Runner) UseConfig() (*config.Config, error) {
 	return cfg, nil
 }
 
-func (r *Runner) UseDriver(registry *plugins.Registry, cfg *config.Config, name string) (*plugin.DriverInstance, error) {
+func (r *Runner) UseDriver(cfg *config.Config, name string) (*plugin.DriverInstance, error) {
 	definedDriver, ok := cfg.Drivers[name]
 	if !ok {
 		return nil, fmt.Errorf("argument error: Driver not defined in config (metadata.name): %s", name)
 	}
-	driver, err := registry.Get(definedDriver.Spec.Driver)
+	driver, err := r.registry.Get(definedDriver.Spec.Driver)
 	if err != nil {
 		return nil, err
 	}
@@ -138,14 +138,14 @@ func (r *Runner) ExecuteMigrateFixUp(ctx context.Context, cmd *CommandMigrateFix
 	if err != nil {
 		return nil, err
 	}
-	driver, err := r.UseDriver(r.registry, cfg, cmd.Driver)
-    if err != nil {
-        return nil, err
-    }
+	driver, err := r.UseDriver(cfg, cmd.Driver)
+	if err != nil {
+		return nil, err
+	}
 	set, err := r.UseMigrationSet(cfg, cmd.Set)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return r.migrator.MigrateFixUp(ctx, cfg, MigrateFixUpOptions{
 		Driver:  driver,
@@ -160,14 +160,14 @@ func (r *Runner) ExecuteMigrateFixDown(ctx context.Context, cmd *CommandMigrateF
 	if err != nil {
 		return nil, err
 	}
-	driver, err := r.UseDriver(r.registry, cfg, cmd.Driver)
-    if err != nil {
-        return nil, err
-    }
+	driver, err := r.UseDriver(cfg, cmd.Driver)
+	if err != nil {
+		return nil, err
+	}
 	set, err := r.UseMigrationSet(cfg, cmd.Set)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return r.migrator.MigrateFixDown(ctx, cfg, MigrateFixDownOptions{
 		Driver:  driver,
@@ -182,14 +182,14 @@ func (r *Runner) ExecuteMigrateUp(ctx context.Context, cmd *CommandMigrateUp) (*
 	if err != nil {
 		return nil, err
 	}
-	driver, err := r.UseDriver(r.registry, cfg, cmd.Driver)
-    if err != nil {
-        return nil, err
-    }
+	driver, err := r.UseDriver(cfg, cmd.Driver)
+	if err != nil {
+		return nil, err
+	}
 	set, err := r.UseMigrationSet(cfg, cmd.Set)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return r.migrator.MigrateUp(ctx, cfg, MigrateUpOptions{
 		Driver: driver,
@@ -202,14 +202,14 @@ func (r *Runner) ExecuteMigrateDown(ctx context.Context, cmd *CommandMigrateDown
 	if err != nil {
 		return nil, err
 	}
-	driver, err := r.UseDriver(r.registry, cfg, cmd.Driver)
-    if err != nil {
-        return nil, err
-    }
+	driver, err := r.UseDriver(cfg, cmd.Driver)
+	if err != nil {
+		return nil, err
+	}
 	set, err := r.UseMigrationSet(cfg, cmd.Set)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return r.migrator.MigrateDown(ctx, cfg, MigrateDownOptions{
 		Driver:  driver,
@@ -223,14 +223,14 @@ func (r *Runner) ExecuteMigrateStatus(ctx context.Context, cmd *CommandMigrateSt
 	if err != nil {
 		return nil, err
 	}
-	driver, err := r.UseDriver(r.registry, cfg, cmd.Driver)
-    if err != nil {
-        return nil, err
-    }
+	driver, err := r.UseDriver(cfg, cmd.Driver)
+	if err != nil {
+		return nil, err
+	}
 	set, err := r.UseMigrationSet(cfg, cmd.Set)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return r.migrator.MigrateStatus(ctx, cfg, MigrateStatusOptions{
 		Driver: driver,
@@ -243,14 +243,14 @@ func (r *Runner) ExecuteMigrateAudit(ctx context.Context, cmd *CommandAudit) (*M
 	if err != nil {
 		return nil, err
 	}
-	driver, err := r.UseDriver(r.registry, cfg, cmd.Driver)
-    if err != nil {
-        return nil, err
-    }
+	driver, err := r.UseDriver(cfg, cmd.Driver)
+	if err != nil {
+		return nil, err
+	}
 	set, err := r.UseMigrationSet(cfg, cmd.Set)
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
 	return r.migrator.MigrateAudit(ctx, cfg, MigrateAuditOptions{
 		Driver:      driver,

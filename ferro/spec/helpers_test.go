@@ -34,11 +34,23 @@ type cliMock struct {
 	stdout     *bytes.Buffer
 	stderr     *bytes.Buffer
 	T          *testing.T
+	//
+	templates  *tpls.Templates
+	registry   *plugins.Registry
+	filesystem *config.Filesystem
 }
 
 type assertAudit struct {
 	result *run.MigrateAuditResult
 	T      *testing.T
+}
+
+type assertData struct {
+	T              *testing.T
+	driverInstance *plugin.DriverInstance
+	set            *config.MigrationSet
+	nav            *run.Navigator
+	execCtx        plugin.DriverExecutionContext
 }
 
 func NewTestCLI(t *testing.T) (*cliMock, func()) {
@@ -53,17 +65,25 @@ func NewTestCLI(t *testing.T) (*cliMock, func()) {
 		Dir:    dir,
 	}
 
+	templates := tpls.New(template.FuncMap{})
+	registry := plugins.New()
+	registry.RegisterAll()
+	filesystem := config.NewFilesystem(dir)
+
 	teardown := func() {
 		// tempdir automatically cleans after finished test
 	}
 
 	return &cliMock{
-		T:      t,
-		id:     uuid.Must(uuid.NewV7()).String(),
-		fs:     afero.Afero{Fs: osfs},
-		app:    app,
-		stdout: stdout,
-		stderr: stderr,
+		T:          t,
+		id:         uuid.Must(uuid.NewV7()).String(),
+		fs:         afero.Afero{Fs: osfs},
+		app:        app,
+		stdout:     stdout,
+		stderr:     stderr,
+		templates:  templates,
+		registry:   registry,
+		filesystem: filesystem,
 	}, teardown
 }
 
@@ -256,6 +276,7 @@ func (m *cliMock) Audit(driver string, set string) *assertAudit {
 
 func (a *assertAudit) AssertCount(count int) {
 	if count != len(a.result.Logs) {
+		// panic("AssertTableExists not implemented")
 		a.T.Fatalf("expect to have %d audit logs, but got %d", count, len(a.result.Logs))
 	}
 }
@@ -286,5 +307,59 @@ func (a *assertAudit) Assert(index int, log auditLog) {
 		a.T.Logf("   got:%v", got)
 		a.T.Logf("  want:%v", want)
 		a.T.Fail()
+	}
+}
+
+func (m *cliMock) Data(driver string, set string) *assertData {
+	runner := m.Runner()
+	config, err := runner.UseConfig()
+	if err != nil {
+		m.T.Fatalf("cannot use config, runner error: %v", err)
+	}
+	instance, err := runner.UseDriver(config, driver)
+	if err != nil {
+		m.T.Fatalf("cannot use driver, runner error: %v", err)
+	}
+	migrationSet, err := runner.UseMigrationSet(config, set)
+	if err != nil {
+		m.T.Fatalf("cannot use migration set, runner error: %v", err)
+	}
+
+	execCtx := plugin.DriverExecutionContext{
+		Prefix: migrationSet.Spec.Namespace.Prefix,
+		Schema: migrationSet.Spec.Namespace.Schema,
+	}
+	nav := run.NewNavigator(instance, config, execCtx)
+
+	return &assertData{
+		T:       m.T,
+		nav:     nav,
+		execCtx: execCtx,
+	}
+}
+
+func (d *assertData) AssertTableExists(name string) {
+	conn, close, err := d.nav.Open(context.Background())
+	if err != nil {
+		d.T.Fatalf("failed to open navigator: %v", err)
+	}
+	defer close()
+
+    err = conn.Query(d.execCtx).Exec(context.Background(), "invalid query")
+	if err != nil {
+		d.T.Fatalf("failed to check if table exists: %v", err)
+	}
+}
+
+func (d *assertData) AssertTableNotExists(name string) {
+	conn, close, err := d.nav.Open(context.Background())
+	if err != nil {
+		d.T.Fatalf("failed to open navigator: %v", err)
+	}
+	defer close()
+
+    err = conn.Query(d.execCtx).Exec(context.Background(), "invalid query")
+	if err != nil {
+		d.T.Fatalf("failed to check if table exists: %v", err)
 	}
 }

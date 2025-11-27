@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestActionMigrateUp(t *testing.T) {
+func TestActionMigrateStatusAndUpAndDown(t *testing.T) {
 	cli, teardown := NewTestCLI(t)
 	defer teardown()
 
@@ -40,20 +40,23 @@ spec:
 `,
 	)
 
-	cli.AssertRun("migrate", "status", "--set", "public", "--driver", "test")
+	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
 	cli.AssertOutputContains(t, "pending v1 create_animals")
 	cli.ResetAllOutputs()
 
-	cli.AssertRun("migrate", "up", "--set", "public", "--driver", "test")
+    data := cli.Data("test", "public")
+    data.AssertTableNotExists("animals")
+
+	cli.AssertRun("migrate", "up", "--driver", "test", "--set", "public")
 	cli.AssertOutputNotContains(t, "No pending migrations")
 	cli.AssertOutputContains(t, "Applied successfully")
 	cli.ResetAllOutputs()
 
-	cli.AssertRun("migrate", "up", "--set", "public", "--driver", "test")
+	cli.AssertRun("migrate", "up", "--driver", "test", "--set", "public")
 	cli.AssertOutputContains(t, "No pending migrations")
 	cli.ResetAllOutputs()
 
-	cli.AssertRun("migrate", "status", "--set", "public", "--driver", "test")
+	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
 	cli.AssertOutputContains(t, "completed v1 create_animals")
 	cli.ResetAllOutputs()
 
@@ -79,15 +82,59 @@ spec:
 		},
 		Metadata: map[string]any{},
 	})
-	// TODO:
-	// - check if table exists
-	// - check if table does not exists
+    data.AssertTableExists("animals")
 
-    // data := cli.Data("test", "public")
-    // data.AssertRowCount("animals", 1)
-    // data.AssertTableExists("animals")
-    // data.AssertTableNotExists("animals")
-    // data
+	cli.AssertRun("migrate", "down", "--driver", "test", "--set", "public", "--version", "v1")
+	cli.AssertOutputContains(t, "Migration v1 rolled back successfully")
+	cli.ResetAllOutputs()
+
+	audit = cli.Audit("test", "public")
+	audit.AssertCount(4)
+	audit.Assert(0, auditLog{
+		ID:    1,
+		Event: "migration.up.started",
+		Data: map[string]any{
+			"migration": "create_animals",
+			"set":       "public",
+			"version":   "v1",
+		},
+		Metadata: map[string]any{},
+	})
+	audit.Assert(1, auditLog{
+		ID:    2,
+		Event: "migration.up.completed",
+		Data: map[string]any{
+			"migration": "create_animals",
+			"set":       "public",
+			"version":   "v1",
+		},
+		Metadata: map[string]any{},
+	})
+	audit.Assert(2, auditLog{
+		ID:    3,
+		Event: "migration.down.started",
+		Data: map[string]any{
+			"migration": "create_animals",
+			"set":       "public",
+			"version":   "v1",
+		},
+		Metadata: map[string]any{},
+	})
+	audit.Assert(3, auditLog{
+		ID:    4,
+		Event: "migration.down.completed",
+		Data: map[string]any{
+			"migration": "create_animals",
+			"set":       "public",
+			"version":   "v1",
+		},
+		Metadata: map[string]any{},
+	})
+    data.AssertTableNotExists("animals")
+
+	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
+	cli.AssertOutputContains(t, "pending v1 create_animals")
+	cli.ResetAllOutputs()
 }
 
 // func TestActionMigrateUpWithError(t *testing.T) {
