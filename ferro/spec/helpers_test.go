@@ -259,10 +259,49 @@ func (m *cliMock) AssertOutputContains(output string) bool {
 	return val
 }
 
+func (m *cliMock) AssertErrorContains(output string) bool {
+	s := fmtx.StripANSI(m.stderr.String())
+	chunks := strings.Split(s, "\n")
+	for i, chunk := range chunks {
+		chunks[i] = fmtx.Squish(chunk)
+	}
+	s = strings.Join(chunks, "\n")
+
+	chunks = strings.Split(output, "\n")
+	for i, chunk := range chunks {
+		chunks[i] = fmtx.Squish(chunk)
+	}
+	output = strings.Join(chunks, "\n")
+
+	val := assert.Contains(
+		m.T,
+		strings.TrimSpace(s),
+		strings.TrimSpace(output),
+		"Output mismatch",
+	)
+	if !val {
+		m.T.Fatalf("Captured:\n%s", m.stderr.String())
+	}
+	return val
+}
+
 func (m *cliMock) AssertOutputNotContains(output string) bool {
+	s := fmtx.StripANSI(m.stdout.String())
+	chunks := strings.Split(s, "\n")
+	for i, chunk := range chunks {
+		chunks[i] = fmtx.Squish(chunk)
+	}
+	s = strings.Join(chunks, "\n")
+
+	chunks = strings.Split(output, "\n")
+	for i, chunk := range chunks {
+		chunks[i] = fmtx.Squish(chunk)
+	}
+	output = strings.Join(chunks, "\n")
+
 	val := assert.NotContains(
 		m.T,
-		strings.TrimSpace(fmtx.StripANSI(m.stdout.String())),
+		strings.TrimSpace(s),
 		strings.TrimSpace(output),
 		"Output mismatch",
 	)
