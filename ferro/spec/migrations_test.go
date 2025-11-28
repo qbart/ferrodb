@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestActionMigrateHappyPath(t *testing.T) {
+func TestMigrationsHappyPath(t *testing.T) {
 	cli, teardown := NewTestCLI(t)
 	defer teardown()
 
