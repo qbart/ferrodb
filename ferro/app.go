@@ -27,6 +27,7 @@ type App struct {
 
 	Dir    string
 	Logger *fmtx.Logger
+	run.Clock
 }
 
 func (a *App) Run(args []string) int {
@@ -44,7 +45,7 @@ func (a *App) Run(args []string) int {
 	filesystem := config.NewFilesystem(a.Dir)
 	// runners
 	generator := run.NewGenerator(filesystem, templates, &generators.TimestampVersionGenerator{})
-	runner := run.New(filesystem, templates, registry, a.Logger)
+	runner := run.New(filesystem, templates, registry, a.Logger, a.Clock)
 
 	// init commands
 	initCmd := &cli.Command{
@@ -60,10 +61,10 @@ func (a *App) Run(args []string) int {
 		Name:  "validate",
 		Usage: "Validate the config",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-            _, err := runner.UseConfig()
-            if err != nil {
-                return err
-            }
+			_, err := runner.UseConfig()
+			if err != nil {
+				return err
+			}
 			a.Logger.WriteSuccess("Config is valid")
 			return nil
 		},
@@ -240,8 +241,8 @@ func (a *App) Run(args []string) int {
 			if out.WasPending == 0 {
 				a.Logger.WriteSuccess("No pending migrations")
 			} else {
-                a.Logger.WriteSuccess("Applied successfully")
-            }
+				a.Logger.WriteSuccess("Applied successfully")
+			}
 
 			return nil
 		},
@@ -334,7 +335,7 @@ func (a *App) Run(args []string) int {
 		migrateGroup,
 	}
 
-    err := root.Run(context.Background(), args)
+	err := root.Run(context.Background(), args)
 	if err != nil {
 		a.Logger.WriteError(err.Error())
 		return 1

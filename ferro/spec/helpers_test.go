@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5"
@@ -34,10 +35,15 @@ type cliMock struct {
 	stdout     *bytes.Buffer
 	stderr     *bytes.Buffer
 	T          *testing.T
+	*clockMock
 	//
 	templates  *tpls.Templates
 	registry   *plugins.Registry
 	filesystem *config.Filesystem
+}
+
+type clockMock struct {
+	Time time.Time
 }
 
 type assertAudit struct {
@@ -60,9 +66,13 @@ func NewTestCLI(t *testing.T) (*cliMock, func()) {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
+	clock := &clockMock{
+		Time: time.Now().UTC(),
+	}
 	app := &ferro.App{
 		Logger: fmtx.New(stdout, stderr),
 		Dir:    dir,
+		Clock:  clock,
 	}
 
 	templates := tpls.New(template.FuncMap{})
@@ -84,7 +94,18 @@ func NewTestCLI(t *testing.T) (*cliMock, func()) {
 		templates:  templates,
 		registry:   registry,
 		filesystem: filesystem,
+		clockMock:  clock,
 	}, teardown
+}
+
+func (c *cliMock) SetTime(stime string) {
+    loc := time.Now().Location()
+	layout := "2006-01-02 15:04"
+	t, err := time.ParseInLocation(layout, stime, loc)
+	if err != nil {
+		c.T.Fatalf("failed to parse time: %v", err)
+	}
+	c.clockMock.Time = t.UTC()
 }
 
 func (c *cliMock) RandomDatabase() func() {
@@ -214,7 +235,18 @@ func (m *cliMock) AssertNotRun(args ...string) bool {
 
 func (m *cliMock) AssertOutputContains(output string) bool {
 	s := fmtx.StripANSI(m.stdout.String())
-	s = fmtx.Squish(s)
+	chunks := strings.Split(s, "\n")
+	for i, chunk := range chunks {
+		chunks[i] = fmtx.Squish(chunk)
+	}
+	s = strings.Join(chunks, "\n")
+
+	chunks = strings.Split(output, "\n")
+	for i, chunk := range chunks {
+		chunks[i] = fmtx.Squish(chunk)
+	}
+	output = strings.Join(chunks, "\n")
+
 	val := assert.Contains(
 		m.T,
 		strings.TrimSpace(s),
@@ -255,7 +287,7 @@ func (m *cliMock) Runner() *run.Runner {
 	registry := plugins.New()
 	registry.RegisterAll()
 	filesystem := config.NewFilesystem(m.app.Dir)
-	return run.New(filesystem, templates, registry, m.app.Logger)
+	return run.New(filesystem, templates, registry, m.app.Logger, m.clockMock)
 }
 
 func (m *cliMock) Audit(driver string, set string) *assertAudit {
@@ -329,7 +361,7 @@ func (m *cliMock) Data(driver string, set string) *assertData {
 		Prefix: migrationSet.Spec.Namespace.Prefix,
 		Schema: migrationSet.Spec.Namespace.Schema,
 	}
-	nav := run.NewNavigator(instance, config, execCtx)
+	nav := run.NewNavigator(instance, config, execCtx, m.clockMock)
 
 	return &assertData{
 		T:       m.T,
@@ -345,10 +377,10 @@ func (d *assertData) AssertTableExists(name string) {
 	}
 	defer close()
 
-    schema := d.execCtx.Schema
-    if schema == "" {
-        schema = "public"
-    }
+	schema := d.execCtx.Schema
+	if schema == "" {
+		schema = "public"
+	}
 
 	q := `
 SELECT EXISTS (
@@ -379,10 +411,10 @@ func (d *assertData) AssertTableNotExists(name string) {
 	}
 	defer close()
 
-    schema := d.execCtx.Schema
-    if schema == "" {
-        schema = "public"
-    }
+	schema := d.execCtx.Schema
+	if schema == "" {
+		schema = "public"
+	}
 
 	q := `
 SELECT EXISTS (
@@ -394,7 +426,7 @@ SELECT EXISTS (
 `
 	result, err := conn.Query(d.execCtx).Query(context.Background(), q, schema, d.execCtx.Prefix+name)
 	if err != nil {
-        d.T.Fatalf("failed to check if table exists: %v", err)
+		d.T.Fatalf("failed to check if table exists: %v", err)
 	}
 	if result.AffectedRows != 1 {
 		d.T.Fatalf("query returned invalid number of rows")
@@ -404,4 +436,8 @@ SELECT EXISTS (
 	if exists {
 		d.T.Fatalf("table `%s` exists but it should not", name)
 	}
+}
+
+func (c *clockMock) Now() time.Time {
+	return c.Time
 }

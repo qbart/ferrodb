@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/qbart/ferrodb/ferro/config"
 	"github.com/qbart/ferrodb/ferro/plugin"
@@ -17,6 +16,7 @@ type Navigator struct {
 	config  *config.Config
 	execCtx plugin.DriverExecutionContext
 	logger  *fmtx.Logger
+	clock   Clock
 }
 
 type MigrationVersion string
@@ -52,11 +52,12 @@ const (
 	MigrationFixDownEvent       = "migration.down.fixed"
 )
 
-func NewNavigator(driver *plugin.DriverInstance, config *config.Config, execCtx plugin.DriverExecutionContext) *Navigator {
+func NewNavigator(driver *plugin.DriverInstance, config *config.Config, execCtx plugin.DriverExecutionContext, clock Clock) *Navigator {
 	return &Navigator{
 		driver:  driver,
 		config:  config,
 		execCtx: execCtx,
+		clock:   clock,
 	}
 }
 
@@ -88,7 +89,7 @@ func (n *Navigator) Ready(ctx context.Context, conn plugin.DriverConnection) err
 func (n *Navigator) Drive(ctx context.Context, conn plugin.DriverConnection, run func() error) error {
 	lock := plugin.DriverAuditLock{
 		ID:       plugin.DriverAuditLockIDForMigrations,
-		LockedAt: time.Now().UTC(),
+		LockedAt: n.clock.Now(),
 		LockedBy: "cli",
 		Data:     make(map[string]any),
 	}

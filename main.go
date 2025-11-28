@@ -8,6 +8,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/qbart/ferrodb/ferro"
 	"github.com/qbart/ferrodb/ferro/config"
+	"github.com/qbart/ferrodb/ferro/run"
 	"github.com/qbart/ferrodb/fmtx"
 )
 
@@ -40,6 +41,7 @@ func main() {
 	app := ferro.App{
 		Logger:                   logger,
 		Dir:                      dir,
+		Clock:                    &run.CurrentTime{},
 		EmbededMigrationTemplate: tplMigration,
 		EmbededDriverTemplate:    tplDriver,
 		EmbededSetTemplate:       tplSet,

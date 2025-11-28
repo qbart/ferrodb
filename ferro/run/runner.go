@@ -17,6 +17,7 @@ type Runner struct {
 	registry *plugins.Registry
 	migrator *Migrator
 	logger   *fmtx.Logger
+	clock    Clock
 }
 
 type Command any
@@ -79,8 +80,9 @@ func New(
 	tpls *tpls.Templates,
 	registry *plugins.Registry,
 	logger *fmtx.Logger,
+	clock Clock,
 ) *Runner {
-	migrator := NewMigrator(fs, logger)
+	migrator := NewMigrator(fs, logger, clock)
 
 	return &Runner{
 		fs:       fs,
@@ -88,6 +90,7 @@ func New(
 		registry: registry,
 		migrator: migrator,
 		logger:   logger,
+		clock:    clock,
 	}
 }
 

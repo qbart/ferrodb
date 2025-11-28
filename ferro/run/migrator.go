@@ -3,7 +3,6 @@ package run
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/qbart/ferrodb/ferro/config"
 	"github.com/qbart/ferrodb/ferro/plugin"
@@ -13,12 +12,14 @@ import (
 type Migrator struct {
 	fs     *config.Filesystem
 	logger *fmtx.Logger
+	clock  Clock
 }
 
-func NewMigrator(fs *config.Filesystem, logger *fmtx.Logger) *Migrator {
+func NewMigrator(fs *config.Filesystem, logger *fmtx.Logger, clock Clock) *Migrator {
 	return &Migrator{
 		fs:     fs,
 		logger: logger,
+		clock:  clock,
 	}
 }
 
@@ -38,7 +39,7 @@ func (m *Migrator) MigrateAudit(ctx context.Context, cfg *config.Config, opts Mi
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
 		Schema: opts.Set.Spec.Namespace.Schema,
-	})
+	}, m.clock)
 	conn, close, err := nav.Open(ctx)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func (m *Migrator) MigrateFixUp(ctx context.Context, cfg *config.Config, opts Mi
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
 		Schema: opts.Set.Spec.Namespace.Schema,
-	})
+	}, m.clock)
 	conn, close, err := nav.Open(ctx)
 	if err != nil {
 		return nil, err
@@ -127,7 +128,7 @@ func (m *Migrator) MigrateFixUp(ctx context.Context, cfg *config.Config, opts Mi
 
 		fixed := plugin.DriverAuditLog{
 			ID:        audited.LastID + 1,
-			AppliedAt: time.Now().UTC(),
+			AppliedAt: m.clock.Now(),
 			Event:     MigrationFixUpEvent,
 			Data: map[string]any{
 				"set":       opts.Set.Metadata.Name,
@@ -183,7 +184,7 @@ func (m *Migrator) MigrateUp(ctx context.Context, cfg *config.Config, opts Migra
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
 		Schema: opts.Set.Spec.Namespace.Schema,
-	})
+	}, m.clock)
 	conn, close, err := nav.Open(ctx)
 	if err != nil {
 		return nil, err
@@ -231,7 +232,7 @@ func (m *Migrator) MigrateUp(ctx context.Context, cfg *config.Config, opts Migra
 		for _, pending := range pendingMigrations {
 			started := plugin.DriverAuditLog{
 				ID:        lastLogID + 1,
-				AppliedAt: time.Now().UTC(),
+				AppliedAt: m.clock.Now(),
 				Event:     MigrationUpStartedEvent,
 				Data: map[string]any{
 					"set":       opts.Set.Metadata.Name,
@@ -252,7 +253,7 @@ func (m *Migrator) MigrateUp(ctx context.Context, cfg *config.Config, opts Migra
 
 			stopped := plugin.DriverAuditLog{
 				ID:        lastLogID + 2,
-				AppliedAt: time.Now().UTC(),
+				AppliedAt: m.clock.Now(),
 				Event:     "",
 				Data: map[string]any{
 					"set":       opts.Set.Metadata.Name,
@@ -305,7 +306,7 @@ func (m *Migrator) MigrateDown(ctx context.Context, cfg *config.Config, opts Mig
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
 		Schema: opts.Set.Spec.Namespace.Schema,
-	})
+	}, m.clock)
 	conn, close, err := nav.Open(ctx)
 	if err != nil {
 		return nil, err
@@ -357,7 +358,7 @@ func (m *Migrator) MigrateDown(ctx context.Context, cfg *config.Config, opts Mig
 
 		started := plugin.DriverAuditLog{
 			ID:        audited.LastID + 1,
-			AppliedAt: time.Now().UTC(),
+			AppliedAt: m.clock.Now(),
 			Event:     MigrationDownStartedEvent,
 			Data: map[string]any{
 				"set":       opts.Set.Metadata.Name,
@@ -377,7 +378,7 @@ func (m *Migrator) MigrateDown(ctx context.Context, cfg *config.Config, opts Mig
 
 		stopped := plugin.DriverAuditLog{
 			ID:        started.ID + 1,
-			AppliedAt: time.Now().UTC(),
+			AppliedAt: m.clock.Now(),
 			Event:     "",
 			Data: map[string]any{
 				"set":       opts.Set.Metadata.Name,
@@ -434,7 +435,7 @@ func (m *Migrator) MigrateStatus(ctx context.Context, cfg *config.Config, opts M
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
 		Schema: opts.Set.Spec.Namespace.Schema,
-	})
+	}, m.clock)
 	conn, close, err := nav.Open(ctx)
 	if err != nil {
 		return nil, err

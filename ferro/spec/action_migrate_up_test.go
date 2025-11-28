@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestActionMigrateStatusAndUpAndDown(t *testing.T) {
+func TestActionMigrateHappyPath(t *testing.T) {
 	cli, teardown := NewTestCLI(t)
 	defer teardown()
 
@@ -39,6 +39,8 @@ spec:
       sql: DROP TABLE animals;
 `,
 	)
+
+	cli.SetTime("2025-11-28 15:40")
 
 	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
 	cli.AssertOutputContains("pending v1 create_animals")
@@ -135,6 +137,14 @@ spec:
 	cli.AssertRun("migrate", "status", "--driver", "test", "--set", "public")
 	cli.AssertOutputContains("pending v1 create_animals")
 	cli.ResetAllOutputs()
+
+	cli.AssertRun("migrate", "audit", "--driver", "test", "--set", "public")
+	cli.AssertOutputContains(`
+          1 2025-11-28 15:40:00 migration.up.started create_animals v1
+        + 2 2025-11-28 15:40:00 migration.up.completed create_animals v1
+          3 2025-11-28 15:40:00 migration.down.started create_animals v1
+        - 4 2025-11-28 15:40:00 migration.down.completed create_animals v1
+        `)
 }
 
 // func TestActionMigrateUpWithError(t *testing.T) {
