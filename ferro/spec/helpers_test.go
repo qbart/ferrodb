@@ -377,7 +377,7 @@ func (a *assertAudit) Assert(index int, log auditLog) {
 		a.T.Logf("audit log[%d] is not same", index)
 		a.T.Logf("   got:%v", got)
 		a.T.Logf("  want:%v", want)
-		a.T.Fail()
+		a.T.FailNow()
 	}
 }
 

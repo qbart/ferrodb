@@ -125,6 +125,9 @@ func (m *Migrator) MigrateFixUp(ctx context.Context, cfg *config.Config, opts Mi
 		if failed == nil {
 			return fmt.Errorf("exec: Migration with version %s does not seem to be failed according to audit log", opts.Version)
 		}
+        if failed.WasDuringRollback {
+            return fmt.Errorf("exec: Migration with version %s failed during rollback, not when applying, fix it accordingly", opts.Version)
+        }
 
 		fixed := plugin.DriverAuditLog{
 			ID:        audited.LastID + 1,
@@ -161,11 +164,72 @@ type MigrateFixDownOptions struct {
 	Comment string
 }
 
-type MigrateFixDownResult struct {
-}
+type MigrateFixDownResult struct {}
 
 func (m *Migrator) MigrateFixDown(ctx context.Context, cfg *config.Config, opts MigrateFixDownOptions) (*MigrateFixDownResult, error) {
+	m.logger.WriteSuccess("Executing Migrate.Fix with Driver=%s, Set=%s, Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Version)
+
+	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
+		Prefix: opts.Set.Spec.Namespace.Prefix,
+		Schema: opts.Set.Spec.Namespace.Schema,
+	}, m.clock)
+	conn, close, err := nav.Open(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer close()
+
+	err = nav.Ready(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+
 	var result MigrateFixDownResult
+	err = nav.Drive(ctx, conn, func() error {
+		audited, err := nav.ComputeState(ctx, conn)
+		if err != nil {
+			return err
+		}
+		auditedSet := audited.EnsureMigrationSet(opts.Set.Metadata.Name)
+		var failed *AuditedMigration
+		for _, m := range auditedSet.Migrations {
+			if m.Status == AuditStatusFailed && m.Version == MigrationVersion(opts.Version) {
+				failed = m
+				break
+			}
+		}
+		if failed == nil {
+			return fmt.Errorf("exec: Migration with version %s does not seem to be failed according to audit log", opts.Version)
+		}
+        if !failed.WasDuringRollback {
+            return fmt.Errorf("exec: Migration with version %s failed when applying, not during rollback, fix it accordingly", opts.Version)
+        }
+
+		fixed := plugin.DriverAuditLog{
+			ID:        audited.LastID + 1,
+			AppliedAt: m.clock.Now(),
+			Event:     MigrationFixDownEvent,
+			Data: map[string]any{
+				"set":       opts.Set.Metadata.Name,
+				"migration": failed.Name,
+				"version":   string(failed.Version),
+			},
+			Metadata: map[string]any{
+				"comment": opts.Comment,
+			},
+		}
+		err = nav.Mark(ctx, conn, fixed)
+		if err != nil {
+			return fmt.Errorf("exec: Failed to mark migration `%s` as fixed: %w", failed.Name, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &result, nil
 }
 

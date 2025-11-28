@@ -32,9 +32,10 @@ type AuditedMigrationSet struct {
 }
 
 type AuditedMigration struct {
-	Name    string
-	Version MigrationVersion
-	Status  string
+	Name              string
+	Version           MigrationVersion
+	Status            string
+	WasDuringRollback bool
 }
 
 const (
@@ -170,6 +171,11 @@ func (n *Navigator) ComputeState(ctx context.Context, conn plugin.DriverConnecti
 		LastID: 0,
 	}
 
+	// TODO: the best way would be to keep all status changes as an array
+	// then current status is the status of last element,
+	// but when we have fix, it means we fix previous status, so we skip two
+	// until we reach another non "fix" which will the correct status
+	//
 	for _, log := range logs {
 		audited.LastID = log.ID
 
@@ -193,6 +199,7 @@ func (n *Navigator) ComputeState(ctx context.Context, conn plugin.DriverConnecti
 			set := audited.EnsureMigrationSet(log.GetData("set"))
 			migration := set.EnsureMigration(MigrationVersion(log.GetData("version")), log.GetData("migration"))
 			migration.Status = AuditStatusStarted
+			migration.WasDuringRollback = true
 
 		case MigrationDownCompletedEvent:
 			set := audited.EnsureMigrationSet(log.GetData("set"))
@@ -202,12 +209,21 @@ func (n *Navigator) ComputeState(ctx context.Context, conn plugin.DriverConnecti
 			set := audited.EnsureMigrationSet(log.GetData("set"))
 			migration := set.EnsureMigration(MigrationVersion(log.GetData("version")), log.GetData("migration"))
 			migration.Status = AuditStatusFailed
+			migration.WasDuringRollback = true
 
 		case MigrationFixUpEvent:
 			// INFO: migration wanted to be UP but failed, so it is not completed and should be retried
 			// so remove it from the computed state like it was never applied (aka pending migration)
 			set := audited.EnsureMigrationSet(log.GetData("set"))
 			set.DeleteMigration(MigrationVersion(log.GetData("version")))
+
+		case MigrationFixDownEvent:
+			// INFO: migration wanted to be DOWN but failed, so we should keep migration status completed
+			// because it was unsuccessuly rolled back so we assume nothing happened
+			set := audited.EnsureMigrationSet(log.GetData("set"))
+			migration := set.EnsureMigration(MigrationVersion(log.GetData("version")), log.GetData("migration"))
+			migration.Status = AuditStatusCompleted
+			migration.WasDuringRollback = true
 		}
 	}
 
