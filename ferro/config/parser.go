@@ -16,8 +16,8 @@ type Parser struct {
 // New initializes parser and default file system.
 func NewParser(fs *Filesystem, logger *fmtx.Logger) *Parser {
 	return &Parser{
-		fs: fs,
-        logger: logger,
+		fs:     fs,
+		logger: logger,
 	}
 }
 
@@ -78,6 +78,7 @@ func (p *Parser) parseMigrationsV1(file *ParsedFile, chunk *ParsedChunk) error {
 			return fmt.Errorf("failed to parse Migration: %w\n%s", err, string(chunk.Raw))
 		}
 		migration.Path = filepath.Join(p.fs.Dir, file.Path)
+		migration.Checksum = chunk.Checksum
 		file.Migrations = append(file.Migrations, &migration)
 
 	case "MigrationSet":

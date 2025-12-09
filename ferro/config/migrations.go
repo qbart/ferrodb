@@ -13,6 +13,7 @@ type Migration struct {
 	Path     string        `yaml:"-"`
 	Metadata Metadata      `yaml:"metadata"`
 	Spec     MigrationSpec `yaml:"spec"`
+	Checksum Checksum      `yaml:"-"`
 }
 
 type MigrationSpec struct {

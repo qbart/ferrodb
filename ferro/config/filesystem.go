@@ -62,11 +62,12 @@ func (f *Filesystem) LoadFiles(paths []string) ([]*ParsedFile, error) {
 	}
 
 	eg := errgroup.Group{}
-	for i, file := range parsedFiles {
+	for i := range parsedFiles {
 		eg.Go(func() error {
-			src, err := os.ReadFile(filepath.Join(f.Dir, file.Path))
+			path := parsedFiles[i].Path
+			src, err := os.ReadFile(filepath.Join(f.Dir, path))
 			if err != nil {
-				return fmt.Errorf("failed to read config file %s: %w", file.Path, err)
+				return fmt.Errorf("failed to read config file %s: %w", path, err)
 			}
 
 			chunks := bytes.Split(src, []byte("\n---"))
@@ -77,8 +78,9 @@ func (f *Filesystem) LoadFiles(paths []string) ([]*ParsedFile, error) {
 				}
 
 				parsedFiles[i].Chunks = append(parsedFiles[i].Chunks, &ParsedChunk{
-					Header: &parsedHeader,
-					Raw:    chunk,
+					Header:   &parsedHeader,
+					Raw:      chunk,
+					Checksum: CalculateChecksum(chunk),
 				})
 			}
 
@@ -148,6 +150,7 @@ type ParsedFile struct {
 }
 
 type ParsedChunk struct {
-	Header *Header
-	Raw    []byte
+	Header   *Header
+	Checksum Checksum
+	Raw      []byte
 }

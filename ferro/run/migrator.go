@@ -125,9 +125,9 @@ func (m *Migrator) MigrateFixUp(ctx context.Context, cfg *config.Config, opts Mi
 		if failed == nil {
 			return fmt.Errorf("exec: Migration with version %s does not seem to be failed according to audit log", opts.Version)
 		}
-        if failed.WasDuringRollback {
-            return fmt.Errorf("exec: Migration with version %s failed during rollback, not when applying, fix it accordingly", opts.Version)
-        }
+		if failed.WasDuringRollback {
+			return fmt.Errorf("exec: Migration with version %s failed during rollback, not when applying, fix it accordingly", opts.Version)
+		}
 
 		fixed := plugin.DriverAuditLog{
 			ID:        audited.LastID + 1,
@@ -164,7 +164,7 @@ type MigrateFixDownOptions struct {
 	Comment string
 }
 
-type MigrateFixDownResult struct {}
+type MigrateFixDownResult struct{}
 
 func (m *Migrator) MigrateFixDown(ctx context.Context, cfg *config.Config, opts MigrateFixDownOptions) (*MigrateFixDownResult, error) {
 	m.logger.WriteSuccess("Executing Migrate.Fix with Driver=%s, Set=%s, Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Version)
@@ -201,9 +201,9 @@ func (m *Migrator) MigrateFixDown(ctx context.Context, cfg *config.Config, opts 
 		if failed == nil {
 			return fmt.Errorf("exec: Migration with version %s does not seem to be failed according to audit log", opts.Version)
 		}
-        if !failed.WasDuringRollback {
-            return fmt.Errorf("exec: Migration with version %s failed when applying, not during rollback, fix it accordingly", opts.Version)
-        }
+		if !failed.WasDuringRollback {
+			return fmt.Errorf("exec: Migration with version %s failed when applying, not during rollback, fix it accordingly", opts.Version)
+		}
 
 		fixed := plugin.DriverAuditLog{
 			ID:        audited.LastID + 1,
@@ -303,7 +303,9 @@ func (m *Migrator) MigrateUp(ctx context.Context, cfg *config.Config, opts Migra
 					"migration": pending.Metadata.Name,
 					"version":   pending.Spec.Version,
 				},
-				Metadata: map[string]any{},
+				Metadata: map[string]any{
+					"checksum": pending.Checksum,
+				},
 			}
 			err := nav.Mark(ctx, conn, started)
 			if err != nil {
@@ -324,7 +326,9 @@ func (m *Migrator) MigrateUp(ctx context.Context, cfg *config.Config, opts Migra
 					"migration": pending.Metadata.Name,
 					"version":   pending.Spec.Version,
 				},
-				Metadata: map[string]any{},
+				Metadata: map[string]any{
+					"checksum": pending.Checksum,
+				},
 			}
 			if execErr != nil {
 				stopped.Event = MigrationUpFailedEvent
@@ -429,7 +433,9 @@ func (m *Migrator) MigrateDown(ctx context.Context, cfg *config.Config, opts Mig
 				"migration": downMigration.Metadata.Name,
 				"version":   downMigration.Spec.Version,
 			},
-			Metadata: map[string]any{},
+			Metadata: map[string]any{
+				"checksum": downMigration.Checksum,
+			},
 		}
 		err = nav.Mark(ctx, conn, started)
 		if err != nil {
@@ -449,7 +455,9 @@ func (m *Migrator) MigrateDown(ctx context.Context, cfg *config.Config, opts Mig
 				"migration": downMigration.Metadata.Name,
 				"version":   downMigration.Spec.Version,
 			},
-			Metadata: map[string]any{},
+			Metadata: map[string]any{
+				"checksum": downMigration.Checksum,
+			},
 		}
 		if execErr != nil {
 			stopped.Event = MigrationDownFailedEvent
