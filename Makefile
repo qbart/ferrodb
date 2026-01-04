@@ -1,6 +1,6 @@
 .PHONY: quicktest
 quicktest:
-	CGO_ENABLED=0 go test -v ./ferro/spec/...
+	CGO_ENABLED=0 go test -v ./ferro/...
 
 .PHONY: web
 web:

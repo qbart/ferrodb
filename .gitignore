@@ -24,3 +24,4 @@ views/*_templ.go
 # ignores it for the purpose of development and testing
 .ferro/
 #
+.cache/

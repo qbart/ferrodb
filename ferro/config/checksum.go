@@ -8,15 +8,14 @@ import (
 type Checksum string
 
 func CalculateChecksum(raw []byte) Checksum {
-    raw = CleanForChecksum(raw)
+	raw = CleanForChecksum(raw)
 	sum := sha256.Sum256(raw)
 	return Checksum(fmt.Sprintf("%x", sum[:]))
 }
 
 func CleanForChecksum(raw []byte) []byte {
 	raw = CleanNormalizeNewlines(raw)
-	raw = CleanStripComments(raw)
-	raw = CleanCollapseWhitespace(raw)
+	raw = CleanTrimLineEnds(raw)
 	raw = CleanTrim(raw)
 	return raw
 }
@@ -32,49 +31,21 @@ func CleanNormalizeNewlines(raw []byte) []byte {
 	return out
 }
 
-func CleanStripComments(raw []byte) []byte {
+func CleanTrimLineEnds(raw []byte) []byte {
 	out := make([]byte, 0, len(raw))
-	inQuotes := false
-
-	for i := 0; i < len(raw); i++ {
-		c := raw[i]
-
-		switch c {
-		case '"':
-			inQuotes = !inQuotes
-			out = append(out, c)
-
-		case '#':
-			if !inQuotes {
-				// skip until newline
-				for i < len(raw) && raw[i] != '\n' {
-					i++
-				}
-				out = append(out, '\n')
-			} else {
-				out = append(out, c)
-			}
-
-		default:
-			out = append(out, c)
-		}
-	}
-	return out
-}
-
-func CleanCollapseWhitespace(raw []byte) []byte {
-	out := make([]byte, 0, len(raw))
-	space := false
 
 	for _, b := range raw {
-		if b == ' ' || b == '\t' {
-			if !space {
-				out = append(out, ' ')
+		if b == '\n' {
+			for len(out) > 0 {
+				last := out[len(out)-1]
+				if last != ' ' && last != '\t' {
+					break
+				}
+				out = out[:len(out)-1]
 			}
-			space = true
+			out = append(out, b)
 			continue
 		}
-		space = false
 		out = append(out, b)
 	}
 	return out
