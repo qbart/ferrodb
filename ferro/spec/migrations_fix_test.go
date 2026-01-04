@@ -63,7 +63,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(1, auditLog{
 		ID:    2,
@@ -74,7 +76,8 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error": `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"checksum": cli.Checksum("create_animals"),
 		},
 	})
 
@@ -112,7 +115,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(1, auditLog{
 		ID:    2,
@@ -123,7 +128,8 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error": `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"checksum": cli.Checksum("create_animals"),
 		},
 	})
 	audit.Assert(2, auditLog{
@@ -239,7 +245,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(1, auditLog{
 		ID:    2,
@@ -249,7 +257,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(2, auditLog{
 		ID:    3,
@@ -259,7 +269,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(3, auditLog{
 		ID:    4,
@@ -270,7 +282,8 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error": `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"checksum": cli.Checksum("create_animals"),
 		},
 	})
 
@@ -308,7 +321,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(1, auditLog{
 		ID:    2,
@@ -318,7 +333,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(2, auditLog{
 		ID:    3,
@@ -328,7 +345,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(3, auditLog{
 		ID:    4,
@@ -339,7 +358,8 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error": `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"checksum": cli.Checksum("create_animals"),
 		},
 	})
 	audit.Assert(4, auditLog{

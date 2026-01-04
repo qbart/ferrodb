@@ -182,6 +182,18 @@ spec:
 	)
 }
 
+func (c *cliMock) Checksum(migration string) string {
+	config, err := c.Runner().UseConfig()
+	if err != nil {
+		c.T.Fatalf("cannot use config for checksum: %v", err)
+	}
+    mig, ok := config.Migrations[migration]
+    if !ok {
+        c.T.Fatalf("migration `%s` does not exist to calculate checkum", migration)
+    }
+    return string(mig.Checksum)
+}
+
 func (c *cliMock) Files(pathContentPair ...string) {
 	for i := 1; i < len(pathContentPair); i += 2 {
 		path := filepath.Join(c.app.Dir, pathContentPair[i-1])

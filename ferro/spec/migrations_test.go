@@ -72,7 +72,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(1, auditLog{
 		ID:    2,
@@ -82,7 +84,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	data.AssertTableExists("animals")
 
@@ -100,7 +104,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(1, auditLog{
 		ID:    2,
@@ -110,7 +116,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(2, auditLog{
 		ID:    3,
@@ -120,7 +128,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	audit.Assert(3, auditLog{
 		ID:    4,
@@ -130,7 +140,9 @@ spec:
 			"set":       "public",
 			"version":   "v1",
 		},
-		Metadata: map[string]any{},
+		Metadata: map[string]any{
+			"checksum": cli.Checksum("create_animals"),
+		},
 	})
 	data.AssertTableNotExists("animals")
 
@@ -147,28 +159,3 @@ spec:
         `)
 }
 
-// func TestActionMigrateUpWithError(t *testing.T) {
-// 	c := mockCli(mockConfig(`migration_set "public" { migrations = [] }`))
-// 	defer c.Teardown()
-// 	c.AssertSuccessfulRun(t, []string{"migrate", "up", "public"})
-//
-// 	c = mockCli(mockConfig(`
-// migration "do_nothing" {
-//   version = "v1"
-//
-//   up { sql = "SELECT invalid" }
-//   down {}
-// }
-//
-// migration_set "public" {
-//   migrations = [migration.do_nothing]
-// }
-// `))
-//
-// 	c.AssertFailedRun(t, []string{"migrate", "up", "public"})
-// 	c.AssertOutputContains(t, "\x1b[0;31mERR \x1b[0mv1 do_nothing")
-// 	c.AssertUiErrorOutputContains(t,
-// 		`column "invalid" does not exist`,
-// 	)
-// 	c.AssertSchemaMigrationTable(t, "public")
-// }
