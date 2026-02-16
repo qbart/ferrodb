@@ -15,7 +15,7 @@ Do not add features to or fix bugs in `krab/`, `krabdb/`, `web/`, or `views/`. A
 ```
 ferro/              # Active architecture
   app.go            # CLI entry point, all command definitions (urfave/cli/v3)
-  config/           # YAML config parsing, domain types, checksum
+  config/           # YAML config parsing, domain types, checksum (SHA-256)
   plugin/           # Driver interfaces (Driver, DriverConnection, DriverQuery)
   run/              # Execution engine (Runner, Builder, Navigator, Migrator, Generator)
   spec/             # Integration tests (full CLI + real PostgreSQL)
@@ -95,7 +95,7 @@ The active system uses an append-only audit log instead of a simple `schema_migr
 - **`_ferro_audit_lock`**: row-level locking (insert to lock, delete to unlock)
 - Events: `migration.up.started`, `migration.up.completed`, `migration.up.failed`, `migration.up.fixed`, and equivalent `down.*` events
 - State is computed by replaying all log entries
-- Checksums (CRC32 of YAML chunk bytes) are stored in audit log metadata
+- Checksums (SHA-256 of normalized YAML chunk bytes) are stored in audit log metadata
 
 ## CLI Commands
 
