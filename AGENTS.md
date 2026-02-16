@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FerroDB (ferro) is a Go CLI tool for managing PostgreSQL database migrations with a full audit trail. The binary is named `krab` (legacy) but the project is branded as `ferro`/`ferrodb`. Module path: `github.com/qbart/ferrodb`.
+FerroDB (ferro) is a Go CLI tool for managing database migrations with a full audit trail. It uses a plugin-based driver system to support any database — currently a PostgreSQL adapter is implemented. The binary is named `krab` (legacy) but the project is branded as `ferro`/`ferrodb`. Module path: `github.com/qbart/ferrodb`.
 
 The project has two architectures:
 - **`ferro/`** — the active system using YAML `.fyml` config files, append-only audit logging, and `urfave/cli/v3`
