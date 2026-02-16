@@ -2,6 +2,10 @@
 quicktest:
 	CGO_ENABLED=0 go test -v ./ferro/...
 
+.PHONY: ui
+ui:
+	CGO_ENABLED=0 go run main.go ui
+
 .PHONY: web
 web:
 	KRAB_AUTH=none \

@@ -11,6 +11,7 @@ import (
 	"github.com/qbart/ferrodb/fmtx"
 	"github.com/qbart/ferrodb/plugins"
 	"github.com/qbart/ferrodb/tpls"
+	"github.com/qbart/ferrodb/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -322,6 +323,14 @@ func (a *App) Run(args []string) int {
 		},
 	}
 
+	uiCmd := &cli.Command{
+		Name:  "ui",
+		Usage: "Launch interactive terminal UI",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return ui.Run()
+		},
+	}
+
 	root := &cli.Command{
 		Name:      "ferro",
 		Version:   "v0.20.0",
@@ -333,6 +342,7 @@ func (a *App) Run(args []string) int {
 		initCmd,
 		validateCmd,
 		migrateGroup,
+		uiCmd,
 	}
 
 	err := root.Run(context.Background(), args)
