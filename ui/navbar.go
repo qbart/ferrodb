@@ -16,6 +16,11 @@ var navIcons = map[NavItem]string{
 
 var navItems = []NavItem{NavDatabase, NavFavourites}
 
+var navTitles = map[NavItem]string{
+	NavDatabase:   "Database",
+	NavFavourites: "Favourites",
+}
+
 const navWidth = 3
 
 type Navbar struct {
@@ -28,6 +33,28 @@ func NewNavbar(theme Theme) Navbar {
 		Active: NavDatabase,
 		theme:  theme,
 	}
+}
+
+func (n *Navbar) Next() {
+	for i, item := range navItems {
+		if item == n.Active {
+			n.Active = navItems[(i+1)%len(navItems)]
+			return
+		}
+	}
+}
+
+func (n *Navbar) Prev() {
+	for i, item := range navItems {
+		if item == n.Active {
+			n.Active = navItems[(i-1+len(navItems))%len(navItems)]
+			return
+		}
+	}
+}
+
+func (n Navbar) ActiveTitle() string {
+	return navTitles[n.Active]
 }
 
 func (n Navbar) View(height int) string {

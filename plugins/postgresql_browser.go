@@ -21,3 +21,10 @@ func (b *PostgreSQLBrowser) ListNamespaces(ctx context.Context) ([]plugin.Browse
 		{"tenant2", "tenant2"},
 	}, nil
 }
+
+func (b *PostgreSQLBrowser) ListNamespaceObjects(ctx context.Context) ([]plugin.BrowserNamespaceObject, error) {
+	return []plugin.BrowserNamespaceObject{
+		{ID: "table", Name: "Tables"},
+		{ID: "view", Name: "Views"},
+	}, nil
+}

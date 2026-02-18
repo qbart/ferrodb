@@ -1,24 +1,181 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"fmt"
+
+	"github.com/charmbracelet/bubbles/textarea"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
 
 type Content struct {
-	theme Theme
+	Tabs      Tabs
+	textareas []textarea.Model
+	results   []Results
+	width     int
+	height    int
+	theme     Theme
 }
 
 func NewContent(theme Theme) Content {
-	return Content{theme: theme}
+	return Content{
+		Tabs:  NewTabs(theme),
+		theme: theme,
+	}
+}
+
+func (c *Content) newTextarea(value string) textarea.Model {
+	ta := textarea.New()
+	ta.SetValue(value)
+	ta.ShowLineNumbers = true
+	ta.CharLimit = 0
+	ta.Prompt = ""
+	ta.FocusedStyle.Base = lipgloss.NewStyle().Background(c.theme.Bg)
+	ta.BlurredStyle.Base = lipgloss.NewStyle().Background(c.theme.Bg)
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Background(c.theme.SidebarBg)
+	ta.FocusedStyle.LineNumber = lipgloss.NewStyle().Foreground(c.theme.Muted).Background(c.theme.Bg)
+	ta.BlurredStyle.LineNumber = lipgloss.NewStyle().Foreground(c.theme.Muted).Background(c.theme.Bg)
+	ta.FocusedStyle.CursorLineNumber = lipgloss.NewStyle().Foreground(c.theme.Fg).Background(c.theme.SidebarBg)
+	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(c.theme.Fg).Background(c.theme.Bg)
+	ta.BlurredStyle.Text = lipgloss.NewStyle().Foreground(c.theme.Fg).Background(c.theme.Bg)
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(c.theme.Muted).Background(c.theme.Bg)
+	ta.BlurredStyle.Placeholder = lipgloss.NewStyle().Foreground(c.theme.Muted).Background(c.theme.Bg)
+	ta.Cursor.Style = lipgloss.NewStyle().Background(c.theme.Accent)
+	return ta
+}
+
+func (c *Content) SetTabs(tabs []TabItem) {
+	c.Tabs.Items = tabs
+	c.textareas = make([]textarea.Model, len(tabs))
+	c.results = make([]Results, len(tabs))
+	for i, tab := range tabs {
+		c.textareas[i] = c.newTextarea(tab.Content)
+		c.results[i] = NewResults(c.theme)
+	}
+}
+
+func (c *Content) AddTab() {
+	n := len(c.Tabs.Items) + 1
+	tab := TabItem{Title: fmt.Sprintf("%d", n)}
+	c.Tabs.Items = append(c.Tabs.Items, tab)
+
+	ta := c.newTextarea("")
+	bodyHeight := max(0, c.height-1)
+	topHeight := bodyHeight / 2
+	bottomHeight := bodyHeight - topHeight
+	ta.SetWidth(c.width)
+	ta.SetHeight(topHeight)
+	c.textareas = append(c.textareas, ta)
+
+	r := NewResults(c.theme)
+	r.Resize(c.width, bottomHeight)
+	c.results = append(c.results, r)
+
+	c.Blur()
+	c.Tabs.Active = len(c.Tabs.Items) - 1
+	c.Focus()
+}
+
+func (c *Content) Resize(width, height int) {
+	c.width = width
+	c.height = height
+	bodyHeight := max(0, height-1)
+	topHeight := bodyHeight / 2
+	bottomHeight := bodyHeight - topHeight
+	for i := range c.textareas {
+		c.textareas[i].SetWidth(width)
+		c.textareas[i].SetHeight(topHeight)
+		c.results[i].Resize(width, bottomHeight)
+	}
+}
+
+func (c *Content) Focus() {
+	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
+		c.textareas[c.Tabs.Active].Focus()
+	}
+}
+
+func (c *Content) Blur() {
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
+}
+
+func (c *Content) Update(msg tea.Msg) tea.Cmd {
+	if len(c.textareas) == 0 || c.Tabs.Active >= len(c.textareas) {
+		return nil
+	}
+	var cmd tea.Cmd
+	c.textareas[c.Tabs.Active], cmd = c.textareas[c.Tabs.Active].Update(msg)
+	return cmd
+}
+
+func (c *Content) ClearActive() {
+	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
+		c.textareas[c.Tabs.Active].Reset()
+	}
+}
+
+func (c *Content) SetResult(text string) {
+	if len(c.results) > 0 && c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].SetContent(text)
+	}
+}
+
+func (c *Content) NextTab() {
+	if len(c.Tabs.Items) == 0 {
+		return
+	}
+	c.Blur()
+	c.Tabs.Active = (c.Tabs.Active + 1) % len(c.Tabs.Items)
+	c.Focus()
+}
+
+func (c *Content) GoToTab(n int) {
+	if n < 0 || n >= len(c.Tabs.Items) {
+		return
+	}
+	c.Blur()
+	c.Tabs.Active = n
+	c.Focus()
+}
+
+func (c *Content) PrevTab() {
+	if len(c.Tabs.Items) == 0 {
+		return
+	}
+	c.Blur()
+	c.Tabs.Active = (c.Tabs.Active - 1 + len(c.Tabs.Items)) % len(c.Tabs.Items)
+	c.Focus()
 }
 
 func (c Content) View(width, height int) string {
-	style := lipgloss.NewStyle().
-		Background(c.theme.Bg).
-		Foreground(c.theme.Fg).
-		Width(width).
-		Height(height)
+	header := c.Tabs.View(width)
 
-	return style.Render(lipgloss.NewStyle().
-		Foreground(c.theme.Muted).
+	bodyHeight := max(0, height-1)
+	topHeight := bodyHeight / 2
+	bottomHeight := bodyHeight - topHeight
+
+	var editor string
+	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
+		editor = c.textareas[c.Tabs.Active].View()
+	}
+
+	editorStyle := lipgloss.NewStyle().
 		Background(c.theme.Bg).
-		Render(" Content"))
+		Width(width).
+		Height(topHeight)
+
+	var resultsView string
+	if len(c.results) > 0 && c.Tabs.Active < len(c.results) {
+		resultsView = c.results[c.Tabs.Active].View(width, bottomHeight)
+	} else {
+		resultsView = lipgloss.NewStyle().
+			Background(c.theme.Bg).
+			Width(width).
+			Height(bottomHeight).
+			Render("")
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, header, editorStyle.Render(editor), resultsView)
 }
