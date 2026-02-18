@@ -73,3 +73,7 @@ docker_nightly:
 .PHONY: changelog
 changelog:
 	git-chglog -o CHANGELOG.md --next-tag ${TAG}
+
+.PHONY: ai
+ai:
+	claude --resume da25402d-fb54-4f0f-91a3-32a019db4846
