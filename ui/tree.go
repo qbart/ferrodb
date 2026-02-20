@@ -7,10 +7,11 @@ import (
 )
 
 type TreeItem struct {
-	ID       string
-	Label    string
-	Children []TreeItem
-	Expanded bool
+	ID         string
+	Label      string
+	Children   []TreeItem
+	Expandable bool
+	Expanded   bool
 }
 
 type Tree struct {
@@ -38,14 +39,14 @@ func (t *Tree) MoveDown() {
 
 func (t *Tree) Expand() {
 	counter := 0
-	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && len(item.Children) > 0 {
+	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && item.Expandable {
 		item.Expanded = true
 	}
 }
 
 func (t *Tree) Collapse() {
 	counter := 0
-	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil {
+	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && item.Expandable {
 		item.Expanded = false
 	}
 }
@@ -79,7 +80,7 @@ func itemAtCursor(items []TreeItem, cursor int, counter *int) *TreeItem {
 func (t Tree) View(width, height int) string {
 	var lines []string
 	idx := 0
-	t.renderItems(t.Items, 0, &lines, &idx)
+	t.renderItems(t.Items, 0, &lines, &idx, width)
 
 	if len(lines) == 0 {
 		return ""
@@ -92,7 +93,7 @@ func (t Tree) View(width, height int) string {
 	return strings.Join(lines, "\n")
 }
 
-func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int) {
+func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int, width int) {
 	indent := strings.Repeat("  ", depth)
 
 	for _, item := range items {
@@ -100,7 +101,7 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 		*idx++
 
 		prefix := "  "
-		if len(item.Children) > 0 {
+		if item.Expandable {
 			if item.Expanded {
 				prefix = "▼ "
 			} else {
@@ -112,7 +113,8 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 		if isActive {
 			style = lipgloss.NewStyle().
 				Background(t.theme.NavActiveBg).
-				Foreground(t.theme.NavActiveFg)
+				Foreground(t.theme.NavActiveFg).
+				Width(width)
 		} else {
 			style = lipgloss.NewStyle().
 				Background(t.theme.SidebarBg).
@@ -122,7 +124,7 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 		*lines = append(*lines, style.Render(indent+prefix+item.Label))
 
 		if item.Expanded && len(item.Children) > 0 {
-			t.renderItems(item.Children, depth+1, lines, idx)
+			t.renderItems(item.Children, depth+1, lines, idx, width)
 		}
 	}
 }

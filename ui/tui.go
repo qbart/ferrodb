@@ -102,12 +102,14 @@ func (t *TUI) LoadData(ctx context.Context) error {
 		for i, object := range objects {
 			children[i].ID = object.ID
 			children[i].Label = object.Name
+			children[i].Expandable = true
 		}
 
 		t.sidebar.Tree.Items = append(t.sidebar.Tree.Items, TreeItem{
-			ID:       namespace.ID,
-			Label:    namespace.Name,
-			Children: children,
+			ID:         namespace.ID,
+			Label:      namespace.Name,
+			Expandable: true,
+			Children:   children,
 		})
 	}
 
@@ -163,7 +165,7 @@ func (t TUI) reloadCmd() tea.Cmd {
 			for j, obj := range objects {
 				children[j] = TreeItem{ID: obj.ID, Label: obj.Name}
 			}
-			items[i] = TreeItem{ID: ns.ID, Label: ns.Name, Children: children}
+			items[i] = TreeItem{ID: ns.ID, Label: ns.Name, Expandable: true, Children: children}
 		}
 		return loadDataMsg{items: items}
 	}
