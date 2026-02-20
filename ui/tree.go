@@ -141,19 +141,15 @@ func (t *Tree) Expand() {
 
 func (t *Tree) Collapse() {
 	counter := 0
-	item := itemAtCursor(t.Items, t.Cursor, &counter)
-	if item == nil {
-		return
-	}
-	if item.Expandable {
-		item.Expanded = false
-		return
-	}
-	// non-expandable leaf: collapse parent and move cursor to it
-	counter = 0
 	if parent, parentIdx := parentAtCursor(t.Items, t.Cursor, &counter, nil, -1); parent != nil {
 		parent.Expanded = false
 		t.Cursor = parentIdx
+		return
+	}
+	// at root level: collapse self if expandable
+	counter = 0
+	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && item.Expandable {
+		item.Expanded = false
 	}
 }
 
