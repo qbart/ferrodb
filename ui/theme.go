@@ -3,10 +3,11 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 type Theme struct {
-	Bg            lipgloss.Color
-	Fg            lipgloss.Color
-	Muted         lipgloss.Color
-	Accent        lipgloss.Color
+	Bg             lipgloss.Color
+	Fg             lipgloss.Color
+	Muted          lipgloss.Color
+	Accent         lipgloss.Color
+	AccentInactive lipgloss.Color
 	Success       lipgloss.Color
 	Danger        lipgloss.Color
 	Warning       lipgloss.Color
@@ -25,7 +26,8 @@ var DefaultTheme = Theme{
 	Bg:            lipgloss.Color("235"),
 	Fg:            lipgloss.Color("252"),
 	Muted:         lipgloss.Color("243"),
-	Accent:        lipgloss.Color("6"),
+	Accent:         lipgloss.Color("6"),
+	AccentInactive: lipgloss.Color("37"),
 	Success:       lipgloss.Color("2"),
 	Danger:        lipgloss.Color("1"),
 	Warning:       lipgloss.Color("3"),

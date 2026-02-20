@@ -13,9 +13,10 @@ type TabItem struct {
 }
 
 type Tabs struct {
-	Items  []TabItem
-	Active int
-	theme  Theme
+	Items   []TabItem
+	Active  int
+	Focused bool
+	theme   Theme
 }
 
 func NewTabs(theme Theme) Tabs {
@@ -27,8 +28,12 @@ func (t Tabs) View(width int) string {
 	for i, item := range t.Items {
 		var style lipgloss.Style
 		if i == t.Active {
+			activeBg := t.theme.FooterBg
+			if !t.Focused {
+				activeBg = t.theme.AccentInactive
+			}
 			style = lipgloss.NewStyle().
-				Background(t.theme.FooterBg).
+				Background(activeBg).
 				Foreground(t.theme.FooterFg).
 				Bold(true).
 				Padding(0, 1)
@@ -45,6 +50,9 @@ func (t Tabs) View(width int) string {
 			bg := t.theme.Bg
 			if i == t.Active {
 				bg = t.theme.FooterBg
+				if !t.Focused {
+					bg = t.theme.AccentInactive
+				}
 			}
 			dot := lipgloss.NewStyle().
 				Foreground(t.theme.Danger).

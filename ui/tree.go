@@ -23,6 +23,7 @@ type Tree struct {
 	Cursor       int
 	Focused      bool
 	spinnerFrame int
+	scrollOffset int
 	theme        Theme
 }
 
@@ -117,6 +118,18 @@ func anyLoading(items []TreeItem) bool {
 
 func (t *Tree) AdvanceSpinner() {
 	t.spinnerFrame++
+}
+
+func (t *Tree) EnsureVisible(height int) {
+	if height <= 0 {
+		return
+	}
+	if t.Cursor < t.scrollOffset {
+		t.scrollOffset = t.Cursor
+	}
+	if t.Cursor >= t.scrollOffset+height {
+		t.scrollOffset = t.Cursor - height + 1
+	}
 }
 
 func (t *Tree) Expand() {
@@ -247,6 +260,9 @@ func (t Tree) View(width, height int) string {
 		return ""
 	}
 
+	if t.scrollOffset > 0 && t.scrollOffset < len(lines) {
+		lines = lines[t.scrollOffset:]
+	}
 	if len(lines) > height {
 		lines = lines[:height]
 	}
@@ -258,7 +274,7 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 	indent := strings.Repeat("  ", depth)
 
 	for _, item := range items {
-		isActive := t.Focused && *idx == t.Cursor
+		isCursor := *idx == t.Cursor
 		*idx++
 
 		prefix := "  "
@@ -273,11 +289,18 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 		}
 
 		var style lipgloss.Style
-		if isActive {
-			style = lipgloss.NewStyle().
-				Background(t.theme.NavActiveBg).
-				Foreground(t.theme.NavActiveFg).
-				Width(width)
+		if isCursor {
+			if t.Focused {
+				style = lipgloss.NewStyle().
+					Background(t.theme.NavActiveBg).
+					Foreground(t.theme.NavActiveFg).
+					Width(width)
+			} else {
+				style = lipgloss.NewStyle().
+					Background(t.theme.AccentInactive).
+					Foreground(t.theme.NavActiveFg).
+					Width(width)
+			}
 		} else {
 			style = lipgloss.NewStyle().
 				Background(t.theme.SidebarBg).

@@ -72,6 +72,10 @@ func New(opts Options) TUI {
 	}
 }
 
+func (t *TUI) sidebarTreeHeight() int {
+	return max(0, t.height-4)
+}
+
 func (t *TUI) resizeContent() {
 	mainHeight := t.height - 1
 	if t.sidebarOpen {
@@ -228,6 +232,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case itemLoadedMsg:
 		t.sidebar.Tree.SetLoaded(msg.ids, msg.children)
+		t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
 		return t, nil
 
 	case tickMsg:
@@ -289,10 +294,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "w":
 				t.sidebar.Tree.MoveUp()
+				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
 			case "s":
 				t.sidebar.Tree.MoveDown()
+				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
 			case "a":
 				t.sidebar.Tree.Collapse()
+				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
 			case "d":
 				if ids, ok := t.sidebar.Tree.StartLoading(); ok {
 					return t, tea.Batch(loadItemCmd(t.opts, ids), tickCmd())
@@ -301,6 +309,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath())
 				}
 				t.sidebar.Tree.Expand()
+				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
 			case "R":
 				return t, t.reloadCmd()
 			}

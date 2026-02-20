@@ -90,12 +90,14 @@ func (c *Content) Resize(width, height int) {
 }
 
 func (c *Content) Focus() {
+	c.Tabs.Focused = true
 	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
 		c.textareas[c.Tabs.Active].Focus()
 	}
 }
 
 func (c *Content) Blur() {
+	c.Tabs.Focused = false
 	for i := range c.textareas {
 		c.textareas[i].Blur()
 	}
