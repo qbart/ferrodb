@@ -159,25 +159,33 @@ func itemAtCursor(items []TreeItem, cursor int, counter *int) *TreeItem {
 	return nil
 }
 
-// CursorInfo returns the label and depth of the currently selected item.
-func (t Tree) CursorInfo() (label string, depth int, ok bool) {
+// CursorPath returns the full path of labels from root to the currently selected item.
+func (t Tree) CursorPath() ([]string, bool) {
 	counter := 0
-	return findCursorInfo(t.Items, t.Cursor, &counter, 0)
+	var path []string
+	ok := findCursorPath(t.Items, t.Cursor, &counter, nil, &path)
+	return path, ok
 }
 
-func findCursorInfo(items []TreeItem, cursor int, counter *int, depth int) (string, int, bool) {
+func findCursorPath(items []TreeItem, cursor int, counter *int, parentPath []string, result *[]string) bool {
 	for _, item := range items {
+		path := make([]string, len(parentPath)+1)
+		copy(path, parentPath)
+		path[len(parentPath)] = item.Label
+
 		if *counter == cursor {
-			return item.Label, depth, true
+			*result = path
+			return true
 		}
 		*counter++
+
 		if item.Expanded {
-			if label, d, found := findCursorInfo(item.Children, cursor, counter, depth+1); found {
-				return label, d, found
+			if findCursorPath(item.Children, cursor, counter, path, result) {
+				return true
 			}
 		}
 	}
-	return "", 0, false
+	return false
 }
 
 func truncateLabel(s string, maxWidth int) string {

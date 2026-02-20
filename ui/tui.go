@@ -315,9 +315,16 @@ func (t TUI) View() string {
 		main = lipgloss.JoinHorizontal(lipgloss.Top, nav, content)
 	}
 
-	footerLabel := "ferroDB"
-	if cursorLabel, depth, ok := t.sidebar.Tree.CursorInfo(); ok && depth != 1 {
-		footerLabel = cursorLabel
+	footerLabel := ""
+	if t.focus == FocusTree {
+		if labels, ok := t.sidebar.Tree.CursorPath(); ok {
+			depth := len(labels) - 1
+			if depth == 1 {
+				footerLabel = labels[0] // fixed level: show parent schema name
+			} else {
+				footerLabel = labels[depth] // schema or table/view name
+			}
+		}
 	}
 	footer := t.footer.View(t.width, footerLabel)
 
