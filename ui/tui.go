@@ -41,8 +41,6 @@ func New(opts Options) TUI {
 	})
 	content.Focus()
 
-	// fetch from the database
-
 	return TUI{
 		theme:       theme,
 		opts:        opts,
@@ -70,6 +68,11 @@ func (t *TUI) LoadData(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	if err := driver.Connect(ctx, t.opts.RawDSN); err != nil {
+		return err
+	}
+	defer driver.Disconnect(ctx)
 
 	namespaces, err := driver.ListNamespaces(ctx)
 	if err != nil {
