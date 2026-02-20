@@ -6,19 +6,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var treeSpinnerFrames = []string{"◐", "◓", "◑", "◒"}
+
 type TreeItem struct {
 	ID         string
 	Label      string
 	Children   []TreeItem
 	Expandable bool
 	Expanded   bool
+	Loaded     bool
+	loading    bool
 }
 
 type Tree struct {
-	Items   []TreeItem
-	Cursor  int
-	Focused bool
-	theme   Theme
+	Items        []TreeItem
+	Cursor       int
+	Focused      bool
+	spinnerFrame int
+	theme        Theme
 }
 
 func NewTree(theme Theme) Tree {
@@ -37,9 +42,86 @@ func (t *Tree) MoveDown() {
 	}
 }
 
+// StartLoading marks the cursor item as loading if it is expandable and not yet loaded.
+// Returns the full path of IDs from root to the item, and true if loading was started.
+func (t *Tree) StartLoading() ([]string, bool) {
+	counter := 0
+	item, path := findItemWithPath(t.Items, t.Cursor, &counter, nil)
+	if item == nil || !item.Expandable || item.Loaded || item.loading {
+		return nil, false
+	}
+	item.loading = true
+	t.spinnerFrame = 0
+	return path, true
+}
+
+func findItemWithPath(items []TreeItem, cursor int, counter *int, parentPath []string) (*TreeItem, []string) {
+	for i := range items {
+		path := make([]string, len(parentPath)+1)
+		copy(path, parentPath)
+		path[len(parentPath)] = items[i].ID
+
+		if *counter == cursor {
+			return &items[i], path
+		}
+		*counter++
+
+		if items[i].Expanded {
+			if found, foundPath := findItemWithPath(items[i].Children, cursor, counter, path); found != nil {
+				return found, foundPath
+			}
+		}
+	}
+	return nil, nil
+}
+
+func (t *Tree) SetLoaded(ids []string, children []TreeItem) {
+	setLoadedByPath(t.Items, ids, children)
+}
+
+func setLoadedByPath(items []TreeItem, ids []string, children []TreeItem) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	for i := range items {
+		if items[i].ID != ids[0] {
+			continue
+		}
+		if len(ids) == 1 {
+			items[i].loading = false
+			items[i].Loaded = true
+			items[i].Expanded = true
+			items[i].Children = children
+			return true
+		}
+		return setLoadedByPath(items[i].Children, ids[1:], children)
+	}
+	return false
+}
+
+func (t *Tree) IsLoading() bool {
+	return anyLoading(t.Items)
+}
+
+func anyLoading(items []TreeItem) bool {
+	for _, item := range items {
+		if item.loading {
+			return true
+		}
+		if anyLoading(item.Children) {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *Tree) AdvanceSpinner() {
+	t.spinnerFrame++
+}
+
 func (t *Tree) Expand() {
 	counter := 0
-	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && item.Expandable {
+	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && item.Expandable && item.Loaded {
 		item.Expanded = true
 	}
 }
@@ -101,7 +183,9 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 		*idx++
 
 		prefix := "  "
-		if item.Expandable {
+		if item.loading {
+			prefix = treeSpinnerFrames[t.spinnerFrame%len(treeSpinnerFrames)] + " "
+		} else if item.Expandable {
 			if item.Expanded {
 				prefix = "▼ "
 			} else {

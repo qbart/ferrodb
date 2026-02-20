@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/qbart/ferrodb/ferro/config"
@@ -30,25 +31,77 @@ func (b *PostgreSQLBrowser) Disconnect(ctx context.Context) error {
 	return b.driver.Disconnect(ctx, b.conn)
 }
 
-func (b *PostgreSQLBrowser) ListNamespaces(ctx context.Context) ([]plugin.BrowserNamespace, error) {
+func (b *PostgreSQLBrowser) List(ctx context.Context, ids []string) ([]plugin.BrowserItem, error) {
+	switch len(ids) {
+	case 0:
+		return b.listSchemas(ctx)
+	case 1:
+		return []plugin.BrowserItem{
+			{ID: "table", Name: "Tables", HasChildren: true},
+			{ID: "view", Name: "Views", HasChildren: true},
+		}, nil
+	case 2:
+		schema, objectType := ids[0], ids[1]
+		switch objectType {
+		case "table":
+			return b.listTables(ctx, schema)
+		case "view":
+			return b.listViews(ctx, schema)
+		}
+	}
+	return nil, fmt.Errorf("unsupported path depth: %d", len(ids))
+}
+
+func (b *PostgreSQLBrowser) listSchemas(ctx context.Context) ([]plugin.BrowserItem, error) {
 	rows, err := b.conn.Conn.Query(ctx, `SELECT schema_name FROM information_schema.schemata ORDER BY schema_name`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserNamespace, error) {
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
 		var name string
 		if err := row.Scan(&name); err != nil {
-			return plugin.BrowserNamespace{}, err
+			return plugin.BrowserItem{}, err
 		}
-		return plugin.BrowserNamespace{ID: name, Name: name}, nil
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: true}, nil
 	})
 }
 
-func (b *PostgreSQLBrowser) ListNamespaceObjects(ctx context.Context) ([]plugin.BrowserNamespaceObject, error) {
-	return []plugin.BrowserNamespaceObject{
-		{ID: "table", Name: "Tables"},
-		{ID: "view", Name: "Views"},
-	}, nil
+func (b *PostgreSQLBrowser) listTables(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listViews(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT table_name FROM information_schema.views WHERE table_schema = $1 ORDER BY table_name`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
 }

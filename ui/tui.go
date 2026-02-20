@@ -26,6 +26,11 @@ type loadDataMsg struct {
 	err   error
 }
 
+type itemLoadedMsg struct {
+	ids      []string
+	children []TreeItem
+}
+
 type tickMsg time.Time
 
 type TUI struct {
@@ -87,29 +92,16 @@ func (t *TUI) LoadData(ctx context.Context) error {
 	}
 	defer browser.Disconnect(ctx)
 
-	namespaces, err := browser.ListNamespaces(ctx)
+	items, err := browser.List(ctx, []string{})
 	if err != nil {
 		return err
 	}
 
-	objects, err := browser.ListNamespaceObjects(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, namespace := range namespaces {
-		children := make([]TreeItem, len(objects))
-		for i, object := range objects {
-			children[i].ID = object.ID
-			children[i].Label = object.Name
-			children[i].Expandable = true
-		}
-
+	for _, item := range items {
 		t.sidebar.Tree.Items = append(t.sidebar.Tree.Items, TreeItem{
-			ID:         namespace.ID,
-			Label:      namespace.Name,
-			Expandable: true,
-			Children:   children,
+			ID:         item.ID,
+			Label:      item.Name,
+			Expandable: item.HasChildren,
 		})
 	}
 
@@ -137,6 +129,35 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+func loadItemCmd(opts Options, ids []string) tea.Cmd {
+	return func() tea.Msg {
+		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
+		if err != nil {
+			return itemLoadedMsg{ids: ids}
+		}
+		ctx := context.Background()
+		if err := browser.Connect(ctx, opts.RawDSN); err != nil {
+			return itemLoadedMsg{ids: ids}
+		}
+		defer browser.Disconnect(ctx)
+
+		browserItems, err := browser.List(ctx, ids)
+		if err != nil {
+			return itemLoadedMsg{ids: ids}
+		}
+
+		children := make([]TreeItem, len(browserItems))
+		for i, item := range browserItems {
+			children[i] = TreeItem{
+				ID:         item.ID,
+				Label:      item.Name,
+				Expandable: item.HasChildren,
+			}
+		}
+		return itemLoadedMsg{ids: ids, children: children}
+	}
+}
+
 func (t TUI) reloadCmd() tea.Cmd {
 	opts := t.opts
 	return func() tea.Msg {
@@ -150,22 +171,18 @@ func (t TUI) reloadCmd() tea.Cmd {
 		}
 		defer browser.Disconnect(ctx)
 
-		namespaces, err := browser.ListNamespaces(ctx)
-		if err != nil {
-			return loadDataMsg{err: err}
-		}
-		objects, err := browser.ListNamespaceObjects(ctx)
+		browserItems, err := browser.List(ctx, []string{})
 		if err != nil {
 			return loadDataMsg{err: err}
 		}
 
-		items := make([]TreeItem, len(namespaces))
-		for i, ns := range namespaces {
-			children := make([]TreeItem, len(objects))
-			for j, obj := range objects {
-				children[j] = TreeItem{ID: obj.ID, Label: obj.Name}
+		items := make([]TreeItem, len(browserItems))
+		for i, item := range browserItems {
+			items[i] = TreeItem{
+				ID:         item.ID,
+				Label:      item.Name,
+				Expandable: item.HasChildren,
 			}
-			items[i] = TreeItem{ID: ns.ID, Label: ns.Name, Expandable: true, Children: children}
 		}
 		return loadDataMsg{items: items}
 	}
@@ -193,9 +210,19 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return t, nil
 
+	case itemLoadedMsg:
+		t.sidebar.Tree.SetLoaded(msg.ids, msg.children)
+		return t, nil
+
 	case tickMsg:
+		treeLoading := t.sidebar.Tree.IsLoading()
 		if t.footer.Running {
 			t.footer.Tick()
+		}
+		if treeLoading {
+			t.sidebar.Tree.AdvanceSpinner()
+		}
+		if t.footer.Running || treeLoading {
 			return t, tickCmd()
 		}
 		return t, nil
@@ -251,6 +278,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "a":
 				t.sidebar.Tree.Collapse()
 			case "d":
+				if ids, ok := t.sidebar.Tree.StartLoading(); ok {
+					return t, tea.Batch(loadItemCmd(t.opts, ids), tickCmd())
+				}
 				t.sidebar.Tree.Expand()
 			case "R":
 				return t, t.reloadCmd()
