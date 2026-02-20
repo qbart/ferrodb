@@ -27,7 +27,7 @@ var DefaultTheme = Theme{
 	Fg:            lipgloss.Color("252"),
 	Muted:         lipgloss.Color("243"),
 	Accent:         lipgloss.Color("6"),
-	AccentInactive: lipgloss.Color("37"),
+	AccentInactive: lipgloss.Color("245"),
 	Success:       lipgloss.Color("2"),
 	Danger:        lipgloss.Color("1"),
 	Warning:       lipgloss.Color("3"),

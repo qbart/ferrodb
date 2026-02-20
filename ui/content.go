@@ -71,9 +71,15 @@ func (c *Content) AddTab() {
 	r.Resize(c.width, bottomHeight)
 	c.results = append(c.results, r)
 
-	c.Blur()
+	focused := c.Tabs.Focused
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
 	c.Tabs.Active = len(c.Tabs.Items) - 1
-	c.Focus()
+	if focused {
+		c.textareas[c.Tabs.Active].Focus()
+	}
+	c.Tabs.Focused = focused
 }
 
 func (c *Content) Resize(width, height int) {
@@ -128,27 +134,45 @@ func (c *Content) NextTab() {
 	if len(c.Tabs.Items) == 0 {
 		return
 	}
-	c.Blur()
+	focused := c.Tabs.Focused
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
 	c.Tabs.Active = (c.Tabs.Active + 1) % len(c.Tabs.Items)
-	c.Focus()
+	if focused {
+		c.textareas[c.Tabs.Active].Focus()
+	}
+	c.Tabs.Focused = focused
 }
 
 func (c *Content) GoToTab(n int) {
 	if n < 0 || n >= len(c.Tabs.Items) {
 		return
 	}
-	c.Blur()
+	focused := c.Tabs.Focused
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
 	c.Tabs.Active = n
-	c.Focus()
+	if focused {
+		c.textareas[c.Tabs.Active].Focus()
+	}
+	c.Tabs.Focused = focused
 }
 
 func (c *Content) PrevTab() {
 	if len(c.Tabs.Items) == 0 {
 		return
 	}
-	c.Blur()
+	focused := c.Tabs.Focused
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
 	c.Tabs.Active = (c.Tabs.Active - 1 + len(c.Tabs.Items)) % len(c.Tabs.Items)
-	c.Focus()
+	if focused {
+		c.textareas[c.Tabs.Active].Focus()
+	}
+	c.Tabs.Focused = focused
 }
 
 func (c Content) View(width, height int) string {
