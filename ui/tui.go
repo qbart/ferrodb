@@ -9,9 +9,21 @@ import (
 	"github.com/qbart/ferrodb/plugins"
 )
 
+type FocusArea int
+
+const (
+	FocusEditor FocusArea = iota
+	FocusTree
+)
+
 type queryDoneMsg struct {
 	result string
 	ms     int64
+}
+
+type loadDataMsg struct {
+	items []TreeItem
+	err   error
 }
 
 type tickMsg time.Time
@@ -21,6 +33,7 @@ type TUI struct {
 	height      int
 	theme       Theme
 	sidebarOpen bool
+	focus       FocusArea
 	opts        Options
 	navbar      Navbar
 	sidebar     Sidebar
@@ -44,6 +57,7 @@ func New(opts Options) TUI {
 	return TUI{
 		theme:       theme,
 		opts:        opts,
+		focus:       FocusEditor,
 		navbar:      NewNavbar(theme),
 		sidebar:     sidebar,
 		content:     content,
@@ -64,22 +78,21 @@ func (t *TUI) resizeContent() {
 }
 
 func (t *TUI) LoadData(ctx context.Context) error {
-	driver, err := t.opts.Registry.GetBrowser(t.opts.RawDriver)
+	browser, err := t.opts.Registry.GetBrowser(t.opts.RawDriver)
+	if err != nil {
+		return err
+	}
+	if err := browser.Connect(ctx, t.opts.RawDSN); err != nil {
+		return err
+	}
+	defer browser.Disconnect(ctx)
+
+	namespaces, err := browser.ListNamespaces(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := driver.Connect(ctx, t.opts.RawDSN); err != nil {
-		return err
-	}
-	defer driver.Disconnect(ctx)
-
-	namespaces, err := driver.ListNamespaces(ctx)
-	if err != nil {
-		return err
-	}
-
-	objects, err := driver.ListNamespaceObjects(ctx)
+	objects, err := browser.ListNamespaceObjects(ctx)
 	if err != nil {
 		return err
 	}
@@ -98,7 +111,7 @@ func (t *TUI) LoadData(ctx context.Context) error {
 		})
 	}
 
-    return nil
+	return nil
 }
 
 func (t TUI) Init() tea.Cmd {
@@ -122,6 +135,40 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+func (t TUI) reloadCmd() tea.Cmd {
+	opts := t.opts
+	return func() tea.Msg {
+		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
+		if err != nil {
+			return loadDataMsg{err: err}
+		}
+		ctx := context.Background()
+		if err := browser.Connect(ctx, opts.RawDSN); err != nil {
+			return loadDataMsg{err: err}
+		}
+		defer browser.Disconnect(ctx)
+
+		namespaces, err := browser.ListNamespaces(ctx)
+		if err != nil {
+			return loadDataMsg{err: err}
+		}
+		objects, err := browser.ListNamespaceObjects(ctx)
+		if err != nil {
+			return loadDataMsg{err: err}
+		}
+
+		items := make([]TreeItem, len(namespaces))
+		for i, ns := range namespaces {
+			children := make([]TreeItem, len(objects))
+			for j, obj := range objects {
+				children[j] = TreeItem{ID: obj.ID, Label: obj.Name}
+			}
+			items[i] = TreeItem{ID: ns.ID, Label: ns.Name, Children: children}
+		}
+		return loadDataMsg{items: items}
+	}
+}
+
 func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -137,6 +184,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.content.SetResult(msg.result)
 		return t, nil
 
+	case loadDataMsg:
+		if msg.err == nil {
+			t.sidebar.Tree.Items = msg.items
+			t.sidebar.Tree.Cursor = 0
+		}
+		return t, nil
+
 	case tickMsg:
 		if t.footer.Running {
 			t.footer.Tick()
@@ -148,6 +202,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return t, tea.Quit
+		case "ctrl+w":
+			if t.focus == FocusEditor {
+				t.focus = FocusTree
+				t.content.Blur()
+				t.sidebar.Tree.Focused = true
+			} else {
+				t.focus = FocusEditor
+				t.content.Focus()
+				t.sidebar.Tree.Focused = false
+			}
+			return t, nil
 		case "f1":
 			t.help.Visible = !t.help.Visible
 			return t, nil
@@ -173,6 +238,22 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.footer.QueryDone = false
 			t.footer.QueryStart = now
 			return t, tea.Batch(runFakeQuery(now), tickCmd())
+		}
+
+		if t.focus == FocusTree {
+			switch msg.String() {
+			case "w":
+				t.sidebar.Tree.MoveUp()
+			case "s":
+				t.sidebar.Tree.MoveDown()
+			case "a":
+				t.sidebar.Tree.Collapse()
+			case "d":
+				t.sidebar.Tree.Expand()
+			case "R":
+				return t, t.reloadCmd()
+			}
+			return t, nil
 		}
 	}
 

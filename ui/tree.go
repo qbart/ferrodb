@@ -14,18 +14,72 @@ type TreeItem struct {
 }
 
 type Tree struct {
-	Items  []TreeItem
-	Cursor int
-	theme  Theme
+	Items   []TreeItem
+	Cursor  int
+	Focused bool
+	theme   Theme
 }
 
 func NewTree(theme Theme) Tree {
 	return Tree{theme: theme}
 }
 
+func (t *Tree) MoveUp() {
+	if t.Cursor > 0 {
+		t.Cursor--
+	}
+}
+
+func (t *Tree) MoveDown() {
+	if t.Cursor < visibleCount(t.Items)-1 {
+		t.Cursor++
+	}
+}
+
+func (t *Tree) Expand() {
+	counter := 0
+	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && len(item.Children) > 0 {
+		item.Expanded = true
+	}
+}
+
+func (t *Tree) Collapse() {
+	counter := 0
+	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil {
+		item.Expanded = false
+	}
+}
+
+func visibleCount(items []TreeItem) int {
+	n := 0
+	for _, item := range items {
+		n++
+		if item.Expanded {
+			n += visibleCount(item.Children)
+		}
+	}
+	return n
+}
+
+func itemAtCursor(items []TreeItem, cursor int, counter *int) *TreeItem {
+	for i := range items {
+		if *counter == cursor {
+			return &items[i]
+		}
+		*counter++
+		if items[i].Expanded {
+			if found := itemAtCursor(items[i].Children, cursor, counter); found != nil {
+				return found
+			}
+		}
+	}
+	return nil
+}
+
 func (t Tree) View(width, height int) string {
 	var lines []string
-	t.renderItems(t.Items, 0, &lines)
+	idx := 0
+	t.renderItems(t.Items, 0, &lines, &idx)
 
 	if len(lines) == 0 {
 		return ""
@@ -38,10 +92,13 @@ func (t Tree) View(width, height int) string {
 	return strings.Join(lines, "\n")
 }
 
-func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string) {
+func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int) {
 	indent := strings.Repeat("  ", depth)
 
 	for _, item := range items {
+		isActive := t.Focused && *idx == t.Cursor
+		*idx++
+
 		prefix := "  "
 		if len(item.Children) > 0 {
 			if item.Expanded {
@@ -51,15 +108,21 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string) {
 			}
 		}
 
-		style := lipgloss.NewStyle().
-			Background(t.theme.SidebarBg).
-			Foreground(t.theme.Fg)
+		var style lipgloss.Style
+		if isActive {
+			style = lipgloss.NewStyle().
+				Background(t.theme.NavActiveBg).
+				Foreground(t.theme.NavActiveFg)
+		} else {
+			style = lipgloss.NewStyle().
+				Background(t.theme.SidebarBg).
+				Foreground(t.theme.Fg)
+		}
 
-		line := style.Render(indent + prefix + item.Label)
-		*lines = append(*lines, line)
+		*lines = append(*lines, style.Render(indent+prefix+item.Label))
 
 		if item.Expanded && len(item.Children) > 0 {
-			t.renderItems(item.Children, depth+1, lines)
+			t.renderItems(item.Children, depth+1, lines, idx)
 		}
 	}
 }
