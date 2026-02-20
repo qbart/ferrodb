@@ -315,7 +315,11 @@ func (t TUI) View() string {
 		main = lipgloss.JoinHorizontal(lipgloss.Top, nav, content)
 	}
 
-	footer := t.footer.View(t.width)
+	footerLabel := "ferroDB"
+	if cursorLabel, depth, ok := t.sidebar.Tree.CursorInfo(); ok && depth != 1 {
+		footerLabel = cursorLabel
+	}
+	footer := t.footer.View(t.width, footerLabel)
 
 	screen := main + "\n" + footer
 

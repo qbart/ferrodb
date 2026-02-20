@@ -27,13 +27,13 @@ func (f *Footer) Tick() {
 	f.tick++
 }
 
-func (f Footer) View(width int) string {
+func (f Footer) View(width int, label string) string {
 	style := lipgloss.NewStyle().
 		Bold(true).
 		Background(f.theme.FooterBg).
 		Foreground(f.theme.FooterFg)
 
-	left := " ferroDB"
+	left := " " + label
 
 	var right string
 	if f.Running {

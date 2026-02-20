@@ -159,6 +159,38 @@ func itemAtCursor(items []TreeItem, cursor int, counter *int) *TreeItem {
 	return nil
 }
 
+// CursorInfo returns the label and depth of the currently selected item.
+func (t Tree) CursorInfo() (label string, depth int, ok bool) {
+	counter := 0
+	return findCursorInfo(t.Items, t.Cursor, &counter, 0)
+}
+
+func findCursorInfo(items []TreeItem, cursor int, counter *int, depth int) (string, int, bool) {
+	for _, item := range items {
+		if *counter == cursor {
+			return item.Label, depth, true
+		}
+		*counter++
+		if item.Expanded {
+			if label, d, found := findCursorInfo(item.Children, cursor, counter, depth+1); found {
+				return label, d, found
+			}
+		}
+	}
+	return "", 0, false
+}
+
+func truncateLabel(s string, maxWidth int) string {
+	runes := []rune(s)
+	if len(runes) <= maxWidth {
+		return s
+	}
+	if maxWidth <= 1 {
+		return "…"
+	}
+	return string(runes[:maxWidth-1]) + "…"
+}
+
 func (t Tree) View(width, height int) string {
 	var lines []string
 	idx := 0
@@ -205,7 +237,9 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 				Foreground(t.theme.Fg)
 		}
 
-		*lines = append(*lines, style.Render(indent+prefix+item.Label))
+		available := width - lipgloss.Width(indent) - 2
+		label := truncateLabel(item.Label, available)
+		*lines = append(*lines, style.Render(indent+prefix+label))
 
 		if item.Expanded && len(item.Children) > 0 {
 			t.renderItems(item.Children, depth+1, lines, idx, width)
