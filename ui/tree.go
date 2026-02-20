@@ -128,9 +128,32 @@ func (t *Tree) Expand() {
 
 func (t *Tree) Collapse() {
 	counter := 0
-	if item := itemAtCursor(t.Items, t.Cursor, &counter); item != nil && item.Expandable {
-		item.Expanded = false
+	item := itemAtCursor(t.Items, t.Cursor, &counter)
+	if item == nil {
+		return
 	}
+	if item.Expandable {
+		item.Expanded = false
+		return
+	}
+	// non-expandable leaf: collapse parent and move cursor to it
+	counter = 0
+	if parent, parentIdx := parentAtCursor(t.Items, t.Cursor, &counter, nil, -1); parent != nil {
+		parent.Expanded = false
+		t.Cursor = parentIdx
+	}
+}
+
+func (t *Tree) CursorExpandable() bool {
+	counter := 0
+	item := itemAtCursor(t.Items, t.Cursor, &counter)
+	return item != nil && item.Expandable
+}
+
+func (t *Tree) CursorIDPath() []string {
+	counter := 0
+	_, path := findItemWithPath(t.Items, t.Cursor, &counter, nil)
+	return path
 }
 
 func visibleCount(items []TreeItem) int {
@@ -157,6 +180,22 @@ func itemAtCursor(items []TreeItem, cursor int, counter *int) *TreeItem {
 		}
 	}
 	return nil
+}
+
+func parentAtCursor(items []TreeItem, cursor int, counter *int, parent *TreeItem, parentIdx int) (*TreeItem, int) {
+	for i := range items {
+		myIdx := *counter
+		if myIdx == cursor {
+			return parent, parentIdx
+		}
+		*counter++
+		if items[i].Expanded {
+			if p, pIdx := parentAtCursor(items[i].Children, cursor, counter, &items[i], myIdx); p != nil {
+				return p, pIdx
+			}
+		}
+	}
+	return nil, -1
 }
 
 // CursorPath returns the full path of labels from root to the currently selected item.

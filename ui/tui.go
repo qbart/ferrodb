@@ -129,6 +129,22 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+func showItemCmd(opts Options, ids []string) tea.Cmd {
+	return func() tea.Msg {
+		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
+		if err != nil {
+			return nil
+		}
+		ctx := context.Background()
+		if err := browser.Connect(ctx, opts.RawDSN); err != nil {
+			return nil
+		}
+		defer browser.Disconnect(ctx)
+		browser.Show(ctx, ids)
+		return nil
+	}
+}
+
 func loadItemCmd(opts Options, ids []string) tea.Cmd {
 	return func() tea.Msg {
 		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
@@ -280,6 +296,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "d":
 				if ids, ok := t.sidebar.Tree.StartLoading(); ok {
 					return t, tea.Batch(loadItemCmd(t.opts, ids), tickCmd())
+				}
+				if !t.sidebar.Tree.CursorExpandable() {
+					return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath())
 				}
 				t.sidebar.Tree.Expand()
 			case "R":

@@ -31,6 +31,10 @@ func (b *PostgreSQLBrowser) Disconnect(ctx context.Context) error {
 	return b.driver.Disconnect(ctx, b.conn)
 }
 
+func (b *PostgreSQLBrowser) Show(ctx context.Context, ids []string) error {
+	return nil
+}
+
 func (b *PostgreSQLBrowser) List(ctx context.Context, ids []string) ([]plugin.BrowserItem, error) {
 	switch len(ids) {
 	case 0:
