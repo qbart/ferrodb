@@ -7,6 +7,7 @@ import (
 )
 
 type TreeItem struct {
+	ID       string
 	Label    string
 	Children []TreeItem
 	Expanded bool

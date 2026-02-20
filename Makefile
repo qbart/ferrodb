@@ -4,7 +4,7 @@ quicktest:
 
 .PHONY: ui
 ui:
-	CGO_ENABLED=0 go run main.go ui
+	CGO_ENABLED=0 go run main.go ui --raw postgresql:postgres://athena:athena@localhost:5432/athena
 
 .PHONY: web
 web:

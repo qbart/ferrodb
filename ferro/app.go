@@ -3,6 +3,7 @@ package ferro
 import (
 	"context"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/qbart/ferrodb/ferro/config"
@@ -326,8 +327,20 @@ func (a *App) Run(args []string) int {
 	uiCmd := &cli.Command{
 		Name:  "ui",
 		Usage: "Launch interactive terminal UI",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "raw", Usage: "Raw connection string in 'drivername:dsn' format", Required: false},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return ui.Run()
+			opts := ui.Options{Registry: registry}
+			if raw := cmd.String("raw"); raw != "" {
+				i := strings.IndexByte(raw, ':')
+				if i < 0 {
+					return fmt.Errorf("--raw: invalid format, expected 'drivername:dsn'")
+				}
+				opts.RawDriver = raw[:i]
+				opts.RawDSN = raw[i+1:]
+			}
+			return ui.Run(ctx, opts)
 		},
 	}
 

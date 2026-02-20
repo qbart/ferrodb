@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"context"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/qbart/ferrodb/plugins"
 )
 
 type queryDoneMsg struct {
@@ -19,45 +21,34 @@ type TUI struct {
 	height      int
 	theme       Theme
 	sidebarOpen bool
+	opts        Options
 	navbar      Navbar
 	sidebar     Sidebar
-	content Content
-	help    Help
-	footer  Footer
+	content     Content
+	help        Help
+	footer      Footer
 }
 
-func New() TUI {
+func New(opts Options) TUI {
 	theme := DefaultTheme
+
 	sidebar := NewSidebar(theme)
-	sidebar.Tree.Items = []TreeItem{
-		{Label: "public", Expanded: true, Children: []TreeItem{
-			{Label: "users"},
-			{Label: "orders"},
-			{Label: "products"},
-		}},
-		{Label: "auth", Expanded: false, Children: []TreeItem{
-			{Label: "sessions"},
-			{Label: "tokens"},
-		}},
-		{Label: "analytics", Expanded: false, Children: []TreeItem{
-			{Label: "events"},
-			{Label: "pageviews"},
-		}},
-	}
+	sidebar.Tree.Items = []TreeItem{}
 
 	content := NewContent(theme)
 	content.SetTabs([]TabItem{
-		{Title: "1", Modified: false, Content: "SELECT u.id, u.name, u.email\nFROM users u\nJOIN orders o ON o.user_id = u.id\nWHERE o.created_at > NOW() - INTERVAL '30 days'\nGROUP BY u.id\nHAVING COUNT(o.id) > 5\nORDER BY u.name;"},
-		{Title: "2", Content: "INSERT INTO products (name, price, category)\nVALUES\n  ('Widget A', 29.99, 'electronics'),\n  ('Widget B', 49.99, 'electronics'),\n  ('Gadget C', 99.99, 'accessories')\nRETURNING id, name;"},
-		{Title: "3", Content: "UPDATE orders\nSET status = 'shipped',\n    shipped_at = NOW()\nWHERE status = 'processing'\n  AND created_at < NOW() - INTERVAL '2 days'\nRETURNING id, status;"},
+		{Title: "1", Modified: false, Content: ""},
 	})
 	content.Focus()
 
+	// fetch from the database
+
 	return TUI{
-		theme:   theme,
-		navbar:  NewNavbar(theme),
-		sidebar: sidebar,
-		content: content,
+		theme:       theme,
+		opts:        opts,
+		navbar:      NewNavbar(theme),
+		sidebar:     sidebar,
+		content:     content,
 		sidebarOpen: true,
 		help:        NewHelp(theme),
 		footer:      NewFooter(theme),
@@ -72,6 +63,39 @@ func (t *TUI) resizeContent() {
 	} else {
 		t.content.Resize(t.width-navWidth, mainHeight)
 	}
+}
+
+func (t *TUI) LoadData(ctx context.Context) error {
+	driver, err := t.opts.Registry.GetBrowser(t.opts.RawDriver)
+	if err != nil {
+		return err
+	}
+
+	namespaces, err := driver.ListNamespaces(ctx)
+	if err != nil {
+		return err
+	}
+
+	objects, err := driver.ListNamespaceObjects(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range namespaces {
+		children := make([]TreeItem, len(objects))
+		for i, object := range objects {
+			children[i].ID = object.ID
+			children[i].Label = object.Name
+		}
+
+		t.sidebar.Tree.Items = append(t.sidebar.Tree.Items, TreeItem{
+			ID:       namespace.ID,
+			Label:    namespace.Name,
+			Children: children,
+		})
+	}
+
+    return nil
 }
 
 func (t TUI) Init() tea.Cmd {
@@ -186,8 +210,19 @@ func (t TUI) View() string {
 	return screen
 }
 
-func Run() error {
-	p := tea.NewProgram(New(), tea.WithAltScreen())
-	_, err := p.Run()
+type Options struct {
+	RawDriver string
+	RawDSN    string
+	Registry  *plugins.Registry
+}
+
+func Run(ctx context.Context, opts Options) error {
+	tui := New(opts)
+	err := tui.LoadData(ctx)
+	if err != nil {
+		return err
+	}
+	p := tea.NewProgram(tui, tea.WithAltScreen())
+	_, err = p.Run()
 	return err
 }
