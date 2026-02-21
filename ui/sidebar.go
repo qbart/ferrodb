@@ -15,19 +15,21 @@ func NewSidebar(theme Theme) Sidebar {
 
 func (s Sidebar) View(width, height int) string {
 	titleStyle := lipgloss.NewStyle().
-		Bold(true).
+		Bold(false).
 		Background(s.theme.SidebarHeaderBg).
 		Foreground(s.theme.SidebarHeaderFg)
 
 	versionStyle := lipgloss.NewStyle().
 		Background(s.theme.SidebarHeaderBg).
-		Foreground(s.theme.Muted)
+		Foreground(s.theme.Muted).
+		Bold(false)
 
 	headerStyle := lipgloss.NewStyle().
 		Background(s.theme.SidebarHeaderBg).
-		Width(width)
+		Width(width).
+		Bold(false)
 
-	spaceStyle := lipgloss.NewStyle().Background(s.theme.SidebarHeaderBg)
+	spaceStyle := lipgloss.NewStyle().Background(s.theme.SidebarHeaderBg).Bold(false)
 
 	content := " " + titleStyle.Render(s.Title)
 	if s.Version != "" {
@@ -41,6 +43,7 @@ func (s Sidebar) View(width, height int) string {
 		Foreground(s.theme.Fg).
 		Width(width).
 		Height(bodyHeight).
+		Bold(false).
 		Padding(1)
 
 	innerWidth := max(0, width-2)

@@ -53,12 +53,12 @@ func (h Help) View(width, height int) string {
 	boxHeight := len(shortcuts) + 4
 
 	titleStyle := lipgloss.NewStyle().
-		Bold(true).
+		Bold(false).
 		Foreground(h.theme.Fg).
 		Background(h.theme.SidebarBg)
 
 	sectionStyle := lipgloss.NewStyle().
-		Bold(true).
+		Bold(false).
 		Foreground(h.theme.Accent).
 		Background(h.theme.SidebarBg)
 
@@ -67,11 +67,13 @@ func (h Help) View(width, height int) string {
 	keyStyle := lipgloss.NewStyle().
 		Foreground(h.theme.Fg).
 		Background(h.theme.SidebarBg).
-		Width(keyWidth)
+		Width(keyWidth).
+		Bold(false)
 
 	descStyle := lipgloss.NewStyle().
 		Foreground(h.theme.Muted).
-		Background(h.theme.SidebarBg)
+		Background(h.theme.SidebarBg).
+		Bold(false)
 
 	var lines []string
 	lines = append(lines, titleStyle.Render(" Keyboard Shortcuts"))
@@ -92,6 +94,7 @@ func (h Help) View(width, height int) string {
 		Background(h.theme.SidebarBg).
 		Width(boxWidth).
 		Height(boxHeight).
+		Bold(false).
 		Padding(1, 2)
 
 	box := boxStyle.Render(content)

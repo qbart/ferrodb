@@ -61,11 +61,13 @@ func (n Navbar) View(height int) string {
 	baseStyle := lipgloss.NewStyle().
 		Background(n.theme.NavBg).
 		Width(navWidth).
+		Bold(false).
 		Align(lipgloss.Center)
 
 	padStyle := lipgloss.NewStyle().
 		Background(n.theme.NavBg).
-		Width(navWidth)
+		Width(navWidth).
+		Bold(false)
 
 	activeStyle := lipgloss.NewStyle().
 		Background(n.theme.NavActiveBg).
@@ -77,6 +79,7 @@ func (n Navbar) View(height int) string {
 		Background(n.theme.NavBg).
 		Foreground(n.theme.NavFg).
 		Width(navWidth).
+		Bold(false).
 		Align(lipgloss.Center)
 
 	var rows []string

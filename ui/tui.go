@@ -533,11 +533,12 @@ func (t TUI) View() string {
 			Width(explainWidth+sepWidth).
 			Background(t.theme.SidebarHeaderBg).
 			Foreground(t.theme.SidebarHeaderFg).
-			Bold(true).
+			Bold(false).
 			Render(" Explain")
 		sepLine := lipgloss.NewStyle().
 			Background(t.theme.NavBg).
 			Foreground(t.theme.SidebarHeaderBg).
+			Bold(false).
 			Render("▏")
 		bodyHeight := mainHeight - 1
 		sep := strings.Repeat(sepLine+"\n", bodyHeight-1) + sepLine

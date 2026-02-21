@@ -164,19 +164,20 @@ func (r RowDetail) View(width, height int) string {
 	headerStyle := lipgloss.NewStyle().
 		Background(r.theme.SidebarBg).
 		Foreground(r.theme.Accent).
-		Bold(true).
+		Bold(false).
 		Width(width)
 
 	selectedHeaderStyle := lipgloss.NewStyle().
 		Background(r.theme.NavActiveBg).
 		Foreground(r.theme.NavActiveFg).
-		Bold(true).
+		Bold(false).
 		Width(width)
 
 	valueStyle := lipgloss.NewStyle().
 		Background(r.theme.Bg).
 		Foreground(r.theme.Fg).
-		Width(width)
+		Width(width).
+		Bold(false)
 
 	contentHeight := height - 1 // reserve last line for hint
 	end := r.rowOffset + contentHeight
@@ -208,7 +209,8 @@ func (r RowDetail) View(width, height int) string {
 	hintStyle := lipgloss.NewStyle().
 		Background(r.theme.FooterBg).
 		Foreground(lipgloss.Color("0")).
-		Width(width)
+		Width(width).
+		Bold(false)
 	rendered = append(rendered, hintStyle.Render("  ↑ ↓  scroll    j k  jump columns    ← →  scroll horizontal    y  copy    Esc  close"))
 
 	return strings.Join(rendered, "\n")

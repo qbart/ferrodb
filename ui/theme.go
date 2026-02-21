@@ -22,22 +22,28 @@ type Theme struct {
 	SidebarHeaderFg lipgloss.Color
 }
 
+var (
+	Accent         = lipgloss.Color("37")
+	AccentInactive = lipgloss.Color("245")
+	Black          = lipgloss.Color("234")
+)
+
 var DefaultTheme = Theme{
 	Bg:              lipgloss.Color("235"),
 	Fg:              lipgloss.Color("252"),
 	Muted:           lipgloss.Color("243"),
-	Accent:          lipgloss.Color("6"),
-	AccentInactive:  lipgloss.Color("245"),
+	Accent:          Accent,
+	AccentInactive:  AccentInactive,
 	Success:         lipgloss.Color("2"),
 	Danger:          lipgloss.Color("1"),
 	Warning:         lipgloss.Color("3"),
-	FooterBg:        lipgloss.Color("30"),
-	FooterFg:        lipgloss.Color("234"),
+	FooterBg:        Accent,
+	FooterFg:        Black,
 	SidebarBg:       lipgloss.Color("236"),
 	NavBg:           lipgloss.Color("235"),
-	NavFg:           lipgloss.Color("116"),
-	NavActiveBg:     lipgloss.Color("30"),
-	NavActiveFg:     lipgloss.Color("234"),
+	NavFg:           Accent,
+	NavActiveBg:     Accent,
+	NavActiveFg:     Black,
 	SidebarHeaderBg: lipgloss.Color("237"),
 	SidebarHeaderFg: lipgloss.Color("252"),
 }

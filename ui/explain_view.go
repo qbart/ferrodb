@@ -123,7 +123,7 @@ func buildExplainTableLines(tbl plugin.BrowserExplainTable) []explainLine {
 
 	var lines []explainLine
 	lines = append(lines, explainLine{})
-	lines = append(lines, explainLine{text: "  " + tbl.Title, color: lipgloss.Color("6"), bold: true})
+	lines = append(lines, explainLine{text: "  " + tbl.Title, color: Accent, bold: true})
 	lines = append(lines, explainLine{text: sep, color: lipgloss.Color("240")})
 	lines = append(lines, explainLine{text: formatRow(tbl.Headers), color: lipgloss.Color("7"), bold: true})
 	lines = append(lines, explainLine{text: sep, color: lipgloss.Color("240")})
@@ -187,7 +187,7 @@ func buildNodeBox(lines []explainLine, node plugin.BrowserExplainNode, prefix st
 	}
 
 	// Node name — always bold accent
-	lines = append(lines, cell(node.Name, lipgloss.Color("6"), true))
+	lines = append(lines, cell(node.Name, Accent, true))
 
 	// Content lines — highlighted lines stand out, rest are muted
 	for _, line := range node.Lines {
@@ -223,17 +223,19 @@ func explainPad(s string, width int) string {
 }
 
 func (e ExplainView) View(width, height int) string {
-	bg := lipgloss.NewStyle().Background(e.theme.Bg).Width(width)
+	bg := lipgloss.NewStyle().Background(e.theme.Bg).Width(width).Bold(false)
 
 	if e.err != "" {
 		errStyle := lipgloss.NewStyle().
 			Background(e.theme.Bg).
 			Foreground(lipgloss.Color("1")).
-			Width(width)
+			Width(width).
+			Bold(false)
 		detailStyle := lipgloss.NewStyle().
 			Background(e.theme.Bg).
 			Foreground(lipgloss.Color("243")).
-			Width(width)
+			Width(width).
+			Bold(false)
 		parts := strings.SplitN(e.err, "\n", 2)
 		var rows []string
 		rows = append(rows, bg.Render(""))
@@ -276,7 +278,7 @@ func (e ExplainView) View(width, height int) string {
 	}
 	visible := lines[offset:end]
 
-	borderStyle := lipgloss.NewStyle().Background(e.theme.Bg).Foreground(lipgloss.Color("240"))
+	borderStyle := lipgloss.NewStyle().Background(e.theme.Bg).Foreground(lipgloss.Color("240")).Bold(false)
 
 	var rows []string
 	for _, line := range visible {
@@ -285,14 +287,11 @@ func (e ExplainView) View(width, height int) string {
 			continue
 		}
 		if !line.bordered {
-			rows = append(rows, lipgloss.NewStyle().Background(e.theme.Bg).Foreground(line.color).Width(width).Render(line.text))
+			rows = append(rows, lipgloss.NewStyle().Background(e.theme.Bg).Foreground(line.color).Width(width).Bold(false).Render(line.text))
 			continue
 		}
 		// Bordered content line: indent+│ in border color, text in content color, │ in border color
-		contentStyle := lipgloss.NewStyle().Background(e.theme.Bg).Foreground(line.color)
-		if line.bold {
-			contentStyle = contentStyle.Bold(true)
-		}
+		contentStyle := lipgloss.NewStyle().Background(e.theme.Bg).Foreground(line.color).Bold(line.bold)
 		rows = append(rows, borderStyle.Render(line.indent+"│ ")+contentStyle.Render(line.text)+borderStyle.Render(" │"))
 	}
 	for len(rows) < height {

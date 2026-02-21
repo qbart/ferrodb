@@ -144,13 +144,15 @@ func (r Results) View(width, height int, focused bool) string {
 
 	bgStyle := lipgloss.NewStyle().
 		Background(r.theme.Bg).
-		Width(width)
+		Width(width).
+		Bold(false)
 
 	if len(r.data.Headers) == 0 {
 		return lipgloss.NewStyle().
 			Background(r.theme.Bg).
 			Width(width).
 			Height(height).
+			Bold(false).
 			Render("")
 	}
 
@@ -159,12 +161,12 @@ func (r Results) View(width, height int, focused bool) string {
 		headerStyle = lipgloss.NewStyle().
 			Background(r.theme.SidebarHeaderBg).
 			Foreground(r.theme.Fg).
-			Bold(true)
+			Bold(false)
 	} else {
 		headerStyle = lipgloss.NewStyle().
 			Background(r.theme.SidebarBg).
 			Foreground(r.theme.Muted).
-			Bold(true)
+			Bold(false)
 	}
 
 	cellStyle := lipgloss.NewStyle().

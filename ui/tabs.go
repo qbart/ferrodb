@@ -35,12 +35,13 @@ func (t Tabs) View(width int) string {
 			style = lipgloss.NewStyle().
 				Background(activeBg).
 				Foreground(t.theme.FooterFg).
-				Bold(true).
+				Bold(false).
 				Padding(0, 1)
 		} else {
 			style = lipgloss.NewStyle().
 				Background(t.theme.Bg).
 				Foreground(t.theme.Muted).
+				Bold(false).
 				Padding(0, 1)
 		}
 
@@ -57,6 +58,7 @@ func (t Tabs) View(width int) string {
 			dot := lipgloss.NewStyle().
 				Foreground(t.theme.Danger).
 				Background(bg).
+				Bold(false).
 				Render(" •")
 			rendered = rendered + dot
 		}
@@ -71,6 +73,7 @@ func (t Tabs) View(width int) string {
 	filler := lipgloss.NewStyle().
 		Background(t.theme.SidebarHeaderBg).
 		Width(gap).
+		Bold(false).
 		Render("")
 
 	return tabLine + filler

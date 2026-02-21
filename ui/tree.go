@@ -290,17 +290,20 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 				style = lipgloss.NewStyle().
 					Background(t.theme.NavActiveBg).
 					Foreground(t.theme.NavActiveFg).
+					Bold(false).
 					Width(width)
 			} else {
 				style = lipgloss.NewStyle().
 					Background(t.theme.AccentInactive).
 					Foreground(t.theme.NavActiveFg).
+					Bold(false).
 					Width(width)
 			}
 		} else {
 			style = lipgloss.NewStyle().
 				Background(t.theme.SidebarBg).
-				Foreground(t.theme.Fg)
+				Foreground(t.theme.Fg).
+				Bold(false)
 		}
 
 		available := width - lipgloss.Width(indent) - 2
