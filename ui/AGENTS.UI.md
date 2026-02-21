@@ -155,8 +155,10 @@ Each tab has its own `textarea.Model` (bubbles) and `Results` viewport. The text
 
 **Footer label logic:**
 - Tree not focused → empty
-- Cursor at depth 0 (schema) or depth 1 (Tables/Views fixed level) → shows the schema name
+- Cursor at depth 0 (schema) or depth 1 (Tables/Views/… fixed level) → shows the schema name
 - Cursor at depth 2 (table or view name) → shows the table/view name
+- Cursor at depth 3 (table sub-category: Columns/Indexes/Constraints/…) → shows the table name
+- Cursor at depth 4 (column/index/constraint name) → shows the item name
 
 ### Help
 
@@ -171,7 +173,8 @@ type Browser interface {
     Connect(ctx context.Context, dsn string) error
     Disconnect(ctx context.Context) error
     List(ctx context.Context, ids []string) ([]BrowserItem, error)
-    Show(ctx context.Context, ids []string) error
+    Show(ctx context.Context, ids []string) (string, error)
+    Query(ctx context.Context, sql string) (BrowserQueryResult, error)
 }
 
 type BrowserItem struct {
@@ -186,11 +189,35 @@ type BrowserItem struct {
 | `ids` | Returns |
 |-------|---------|
 | `[]` | All schemas from `information_schema.schemata` |
-| `["schema"]` | Fixed list: `[{ID:"table", Name:"Tables"}, {ID:"view", Name:"Views"}]` |
-| `["schema", "table"]` | Tables from `information_schema.tables` (BASE TABLE) |
-| `["schema", "view"]` | Views from `information_schema.views` |
+| `["schema"]` | 10 object type categories: Tables, Views, Materialized Views, Functions, Types, Enums, Domains, Composite Types, Sequences, Foreign Tables |
+| `["schema", "table"]` | Tables (`HasChildren: true`) |
+| `["schema", "view"]` | Views |
+| `["schema", "matview"]` | Materialized views |
+| `["schema", "function"]` | Functions from `information_schema.routines` |
+| `["schema", "type"]` | Range types (`typtype='r'`) |
+| `["schema", "enum"]` | Enum types (`typtype='e'`) |
+| `["schema", "domain"]` | Domain types (`typtype='d'`) |
+| `["schema", "composite"]` | Composite types (`typtype='c'`, `relkind='c'`) |
+| `["schema", "sequence"]` | Sequences |
+| `["schema", "foreign_table"]` | Foreign tables |
+| `["schema", "table", "name"]` | Sub-categories: Columns, Indexes, Constraints, Triggers, Policies, Partitions (if partitioned) |
+| `["schema", "table", "name", "column"]` | Column names (ordinal order) |
+| `["schema", "table", "name", "index"]` | Index names |
+| `["schema", "table", "name", "constraint"]` | Constraint names |
+| `["schema", "table", "name", "trigger"]` | Trigger names |
+| `["schema", "table", "name", "partition"]` | Partition names |
+| `["schema", "table", "name", "policy"]` | Policy names |
 
-`Show` is called when pressing `D` on a non-expandable (leaf) item. Currently a no-op — intended for future detail/preview panels.
+**`Show` path convention (PostgreSQL):**
+
+| `ids` | Returns |
+|-------|---------|
+| `["schema", "table"/"view"/"matview"/"foreign_table", "name"]` | `SELECT * FROM schema.name LIMIT 100` |
+| `["schema", "enum", "name"]` | Query returning all enum values ordered by sort position |
+| `["schema", "table", "name", "index", "index_name"]` | Detailed index info query (size, stats, definition) |
+| anything else | `""` (no-op) |
+
+`Show` is called when pressing `Enter` on a tree item. Returns a SQL query string — `TUI` opens a new tab, pastes the query, and runs it immediately. Returns `""` to silently do nothing.
 
 ## Key Bindings
 
@@ -200,9 +227,11 @@ type BrowserItem struct {
 |-----|--------|
 | `Ctrl+C` | Quit |
 | `F1` | Toggle help overlay |
-| `Ctrl+W` | Cycle focus: tree → editor → results → tree (skips results if empty, skips tree if hidden) |
+| `Tab` | Cycle focus forward: tree → editor → results → tree (skips results if empty, skips tree if hidden) |
+| `Shift+Tab` | Cycle focus backward |
 | `Ctrl+\` | Toggle sidebar (auto-moves focus to editor if tree was focused) |
 | `Ctrl+T` | New tab |
+| `Ctrl+W` | Close active tab (only when editor focused; no-op if only one tab) |
 | `Ctrl+R` | Run query (uses active tab's textarea content) |
 | `Ctrl+Left` | Previous tab |
 | `Ctrl+Right` | Next tab |
@@ -214,7 +243,8 @@ type BrowserItem struct {
 | `↑` | Move cursor up |
 | `↓` | Move cursor down |
 | `←` | Collapse parent (or self at root level) |
-| `→` | Expand/load item; if leaf, call `Show` (opens new tab with query) |
+| `→` | Expand / load item |
+| `Enter` | Open item query in new tab and run it immediately |
 | `Shift+R` | Reload root list from DB |
 
 ### Results (when results focused)

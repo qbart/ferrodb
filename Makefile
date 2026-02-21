@@ -34,8 +34,9 @@ default:
 
 .PHONY: build
 build:
-	mkdir -p bin/
-	go build -o bin/krab main.go
+	@mkdir -p bin/
+	@go build -o bin/ferro main.go
+	@cp bin/ferro ${HOME}/bin/ferro || echo "Failed to copy to ~/bin"
 
 .PHONY: test
 test:
@@ -76,4 +77,4 @@ changelog:
 
 .PHONY: ai
 ai:
-	claude --resume da25402d-fb54-4f0f-91a3-32a019db4846
+	claude --resume 91366a35-3943-4c68-9cd2-e87d22814819
