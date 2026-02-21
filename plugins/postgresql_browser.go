@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/qbart/ferrodb/ferro/config"
@@ -186,6 +187,99 @@ func (b *PostgreSQLBrowser) Query(ctx context.Context, sql string) (plugin.Brows
 	}
 
 	return plugin.BrowserQueryResult{Headers: headers, Rows: data, ColumnTypes: colTypes}, nil
+}
+
+type pgExplainPlan struct {
+	NodeType            string          `json:"Node Type"`
+	RelationName        string          `json:"Relation Name,omitempty"`
+	Alias               string          `json:"Alias,omitempty"`
+	StartupCost         float64         `json:"Startup Cost"`
+	TotalCost           float64         `json:"Total Cost"`
+	PlanRows            int64           `json:"Plan Rows"`
+	PlanWidth           int64           `json:"Plan Width"`
+	ActualStartupTime   float64         `json:"Actual Startup Time,omitempty"`
+	ActualTotalTime     float64         `json:"Actual Total Time,omitempty"`
+	ActualRows          int64           `json:"Actual Rows,omitempty"`
+	ActualLoops         int64           `json:"Actual Loops,omitempty"`
+	SharedHitBlocks     int64           `json:"Shared Hit Blocks,omitempty"`
+	SharedReadBlocks    int64           `json:"Shared Read Blocks,omitempty"`
+	SharedDirtiedBlocks int64           `json:"Shared Dirtied Blocks,omitempty"`
+	SharedWrittenBlocks int64           `json:"Shared Written Blocks,omitempty"`
+	Plans               []pgExplainPlan `json:"Plans,omitempty"`
+}
+
+type pgExplainResult struct {
+	Plan          pgExplainPlan `json:"Plan"`
+	PlanningTime  float64       `json:"Planning Time"`
+	ExecutionTime float64       `json:"Execution Time"`
+}
+
+func (b *PostgreSQLBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin.BrowserExplainResult, error) {
+	if len(data.Rows) == 0 || len(data.Headers) == 0 {
+		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output")
+	}
+	var sb strings.Builder
+	for _, row := range data.Rows {
+		if len(row) > 0 {
+			sb.WriteString(row[0])
+		}
+	}
+	var raw []pgExplainResult
+	if err := json.Unmarshal([]byte(sb.String()), &raw); err != nil {
+		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output\n%s", err.Error())
+	}
+	if len(raw) == 0 {
+		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output")
+	}
+	r := raw[0]
+	return plugin.BrowserExplainResult{
+		Root:          pgPlanToNode(r.Plan),
+		PlanningTime:  r.PlanningTime,
+		ExecutionTime: r.ExecutionTime,
+	}, nil
+}
+
+func pgPlanToNode(plan pgExplainPlan) plugin.BrowserExplainNode {
+	name := plan.NodeType
+	if plan.RelationName != "" {
+		name += " on " + plan.RelationName
+		if plan.Alias != "" && plan.Alias != plan.RelationName {
+			name += " (" + plan.Alias + ")"
+		}
+	}
+
+	node := plugin.BrowserExplainNode{Name: name}
+
+	node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+		Text: fmt.Sprintf("cost %.2f..%.2f  rows %d  width %d",
+			plan.StartupCost, plan.TotalCost, plan.PlanRows, plan.PlanWidth),
+	})
+
+	if plan.ActualTotalTime > 0 || plan.ActualRows > 0 {
+		highlight := plan.TotalCost > 1000
+		text := fmt.Sprintf("actual %.3f..%.3fms  rows %d  ×%d",
+			plan.ActualStartupTime, plan.ActualTotalTime, plan.ActualRows, plan.ActualLoops)
+		if plan.PlanRows > 0 {
+			r := float64(plan.ActualRows) / float64(plan.PlanRows)
+			if r > 10 || r < 0.1 {
+				text += fmt.Sprintf("  ⚠ %.1fx", r)
+				highlight = true
+			}
+		}
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{Text: text, Highlight: highlight})
+	}
+
+	if plan.SharedHitBlocks+plan.SharedReadBlocks > 0 {
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+			Text: fmt.Sprintf("buffers hit=%d  read=%d  dirtied=%d  written=%d",
+				plan.SharedHitBlocks, plan.SharedReadBlocks, plan.SharedDirtiedBlocks, plan.SharedWrittenBlocks),
+		})
+	}
+
+	for _, child := range plan.Plans {
+		node.Children = append(node.Children, pgPlanToNode(child))
+	}
+	return node
 }
 
 func (b *PostgreSQLBrowser) List(ctx context.Context, ids []string) ([]plugin.BrowserItem, error) {

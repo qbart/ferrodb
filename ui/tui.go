@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/qbart/ferrodb/ferro/plugin"
 	"github.com/qbart/ferrodb/plugins"
 )
 
@@ -436,7 +437,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Batch(runQueryCmd(t.opts, sql, now), tickCmd())
 		case "ctrl+e":
 			data := t.content.ActiveResultData()
-			result, err := ParseExplainResult(data)
+			browser, err := t.opts.Registry.GetBrowser(t.opts.RawDriver)
+			if err != nil {
+				t.explainView.SetError(err.Error())
+				t.navbar.Active = NavExplain
+				return t, nil
+			}
+			result, err := browser.ParseExplain(plugin.BrowserQueryResult{
+				Headers:     data.Headers,
+				Rows:        data.Rows,
+				ColumnTypes: data.ColumnTypes,
+			})
 			if err != nil {
 				t.explainView.SetError(err.Error())
 			} else {
@@ -451,7 +462,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "up", "k":
 				t.explainView.ScrollUp()
 			case "down", "j":
-				t.explainView.ScrollDown(t.height - 2)
+				t.explainView.ScrollDown(t.height-2, t.width-navWidth-1)
 			}
 			return t, nil
 		}

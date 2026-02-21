@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 type ExplainView struct {
 	result    *plugin.BrowserExplainResult
 	err       string
-	lines     []explainLine
 	rowOffset int
 	theme     Theme
 }
@@ -23,28 +21,6 @@ type explainLine struct {
 	bold  bool
 }
 
-func ParseExplainResult(data ResultData) (plugin.BrowserExplainResult, error) {
-	if len(data.Rows) == 0 || len(data.Headers) == 0 {
-		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output")
-	}
-	// Join all row values from the first column into one JSON string
-	var sb strings.Builder
-	for _, row := range data.Rows {
-		if len(row) > 0 {
-			sb.WriteString(row[0])
-		}
-	}
-	raw := sb.String()
-	var results []plugin.BrowserExplainResult
-	if err := json.Unmarshal([]byte(raw), &results); err != nil {
-		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output")
-	}
-	if len(results) == 0 {
-		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output")
-	}
-	return results[0], nil
-}
-
 func NewExplainView(theme Theme) ExplainView {
 	return ExplainView{theme: theme}
 }
@@ -53,20 +29,17 @@ func (e *ExplainView) SetResult(result plugin.BrowserExplainResult) {
 	e.result = &result
 	e.err = ""
 	e.rowOffset = 0
-	e.lines = buildExplainLines(result)
 }
 
 func (e *ExplainView) SetError(msg string) {
 	e.result = nil
 	e.err = msg
-	e.lines = nil
 	e.rowOffset = 0
 }
 
 func (e *ExplainView) Clear() {
 	e.result = nil
 	e.err = ""
-	e.lines = nil
 	e.rowOffset = 0
 }
 
@@ -76,8 +49,9 @@ func (e *ExplainView) ScrollUp() {
 	}
 }
 
-func (e *ExplainView) ScrollDown(height int) {
-	max := len(e.lines) - height
+func (e *ExplainView) ScrollDown(height, width int) {
+	lines := e.buildLines(width)
+	max := len(lines) - height
 	if max > 0 && e.rowOffset < max {
 		e.rowOffset++
 	}
@@ -87,89 +61,100 @@ func (e ExplainView) HasContent() bool {
 	return e.result != nil || e.err != ""
 }
 
-func buildExplainLines(result plugin.BrowserExplainResult) []explainLine {
+func (e ExplainView) buildLines(width int) []explainLine {
+	if e.result == nil {
+		return nil
+	}
 	var lines []explainLine
-	lines = buildPlanLines(lines, result.Plan, 0)
+	lines = buildNodeBox(lines, e.result.Root, "", 0, true, true, width)
 	lines = append(lines, explainLine{})
 	lines = append(lines, explainLine{
-		text:  fmt.Sprintf("  Planning Time:   %.3f ms", result.PlanningTime),
+		text:  fmt.Sprintf("  Planning Time:   %.3f ms", e.result.PlanningTime),
 		color: lipgloss.Color("243"),
 	})
 	lines = append(lines, explainLine{
-		text:  fmt.Sprintf("  Execution Time:  %.3f ms", result.ExecutionTime),
+		text:  fmt.Sprintf("  Execution Time:  %.3f ms", e.result.ExecutionTime),
 		color: lipgloss.Color("243"),
 	})
 	return lines
 }
 
-func buildPlanLines(lines []explainLine, plan plugin.BrowserExplainPlan, depth int) []explainLine {
-	indent := strings.Repeat("  ", depth)
-
-	// node header
-	nodeLabel := plan.NodeType
-	if plan.RelationName != "" {
-		nodeLabel += " on " + plan.RelationName
-		if plan.Alias != "" && plan.Alias != plan.RelationName {
-			nodeLabel += " (" + plan.Alias + ")"
-		}
+// buildNodeBox renders a BrowserExplainNode as a Unicode box with connecting arrows.
+//
+//	prefix:     prefix string for content lines at this node's level (inherited from parent)
+//	nodeDepth:  visual depth — each level is 4 terminal cells wide
+//	isLast:     true when this is the last child among its siblings
+//	isRoot:     true for the top-level node (no connector arrow)
+func buildNodeBox(lines []explainLine, node plugin.BrowserExplainNode, prefix string, nodeDepth int, isLast bool, isRoot bool, totalWidth int) []explainLine {
+	var nodePrefix string
+	if isRoot {
+		nodePrefix = ""
+	} else if isLast {
+		nodePrefix = prefix + "    "
+	} else {
+		nodePrefix = prefix + "│   "
 	}
 
+	boxContentWidth := totalWidth - nodeDepth*4 - 4
+	if boxContentWidth < 20 {
+		boxContentWidth = 20
+	}
+
+	borderColor := lipgloss.Color("240")
+	hLine := strings.Repeat("─", boxContentWidth+2)
+
+	// Box top — root has no arrow; children get ├─▶ or └─▶
+	if isRoot {
+		lines = append(lines, explainLine{text: nodePrefix + "┌" + hLine + "┐", color: borderColor})
+	} else {
+		arrow := "├─▶ "
+		if isLast {
+			arrow = "└─▶ "
+		}
+		lines = append(lines, explainLine{text: prefix + arrow + "┌" + hLine + "┐", color: borderColor})
+	}
+
+	// Node name — always bold accent
 	lines = append(lines, explainLine{
-		text:  indent + "› " + nodeLabel,
-		color: lipgloss.Color("6"), // accent
+		text:  nodePrefix + "│ " + explainPad(node.Name, boxContentWidth) + " │",
+		color: lipgloss.Color("6"),
 		bold:  true,
 	})
 
-	// cost vs actual
-	costColor := costColor(plan.TotalCost)
-	lines = append(lines, explainLine{
-		text: fmt.Sprintf("%s  cost: %.2f..%.2f  rows: %d  width: %d",
-			indent+"  ", plan.StartupCost, plan.TotalCost, plan.PlanRows, plan.PlanWidth),
-		color: lipgloss.Color("243"),
-	})
-
-	if plan.ActualTotalTime > 0 || plan.ActualRows > 0 {
-		ratio := ""
-		if plan.PlanRows > 0 {
-			r := float64(plan.ActualRows) / float64(plan.PlanRows)
-			if r > 10 || r < 0.1 {
-				ratio = fmt.Sprintf("  ⚠ est/actual rows ratio: %.1fx", r)
-			}
+	// Content lines — highlighted lines stand out, rest are muted
+	for _, line := range node.Lines {
+		color := lipgloss.Color("243")
+		if line.Highlight {
+			color = lipgloss.Color("3")
 		}
 		lines = append(lines, explainLine{
-			text: fmt.Sprintf("%s  actual: %.3f..%.3f ms  rows: %d  loops: %d%s",
-				indent+"  ", plan.ActualStartupTime, plan.ActualTotalTime,
-				plan.ActualRows, plan.ActualLoops, ratio),
-			color: costColor,
+			text:  nodePrefix + "│ " + explainPad(line.Text, boxContentWidth) + " │",
+			color: color,
 		})
 	}
 
-	// buffers
-	if plan.SharedHitBlocks+plan.SharedReadBlocks > 0 {
-		lines = append(lines, explainLine{
-			text: fmt.Sprintf("%s  buffers: hit=%d  read=%d  dirtied=%d  written=%d",
-				indent+"  ",
-				plan.SharedHitBlocks, plan.SharedReadBlocks,
-				plan.SharedDirtiedBlocks, plan.SharedWrittenBlocks),
-			color: lipgloss.Color("243"),
-		})
+	// Box bottom
+	lines = append(lines, explainLine{text: nodePrefix + "└" + hLine + "┘", color: borderColor})
+
+	// Children
+	for i, child := range node.Children {
+		childIsLast := i == len(node.Children)-1
+		lines = append(lines, explainLine{text: nodePrefix + "│", color: borderColor})
+		lines = buildNodeBox(lines, child, nodePrefix, nodeDepth+1, childIsLast, false, totalWidth)
 	}
 
-	for _, child := range plan.Plans {
-		lines = buildPlanLines(lines, child, depth+1)
-	}
 	return lines
 }
 
-func costColor(totalCost float64) lipgloss.Color {
-	switch {
-	case totalCost > 10000:
-		return lipgloss.Color("1") // red
-	case totalCost > 1000:
-		return lipgloss.Color("3") // yellow
-	default:
-		return lipgloss.Color("2") // green
+func explainPad(s string, width int) string {
+	runes := []rune(s)
+	if len(runes) > width {
+		if width > 1 {
+			return string(runes[:width-1]) + "…"
+		}
+		return string(runes[:width])
 	}
+	return s + strings.Repeat(" ", width-len(runes))
 }
 
 func (e ExplainView) View(width, height int) string {
@@ -180,16 +165,27 @@ func (e ExplainView) View(width, height int) string {
 			Background(e.theme.Bg).
 			Foreground(lipgloss.Color("1")).
 			Width(width)
+		detailStyle := lipgloss.NewStyle().
+			Background(e.theme.Bg).
+			Foreground(lipgloss.Color("243")).
+			Width(width)
+		parts := strings.SplitN(e.err, "\n", 2)
 		var rows []string
 		rows = append(rows, bg.Render(""))
-		rows = append(rows, errStyle.Render("  "+e.err))
+		rows = append(rows, errStyle.Render("  "+parts[0]))
+		if len(parts) == 2 {
+			rows = append(rows, bg.Render(""))
+			rows = append(rows, detailStyle.Render("  "+parts[1]))
+		}
 		for len(rows) < height {
 			rows = append(rows, bg.Render(""))
 		}
 		return strings.Join(rows, "\n")
 	}
 
-	if len(e.lines) == 0 {
+	lines := e.buildLines(width)
+
+	if len(lines) == 0 {
 		var rows []string
 		for len(rows) < height {
 			rows = append(rows, bg.Render(""))
@@ -197,11 +193,23 @@ func (e ExplainView) View(width, height int) string {
 		return strings.Join(rows, "\n")
 	}
 
-	end := e.rowOffset + height
-	if end > len(e.lines) {
-		end = len(e.lines)
+	offset := e.rowOffset
+	maxOffset := len(lines) - height
+	if maxOffset < 0 {
+		maxOffset = 0
 	}
-	visible := e.lines[e.rowOffset:end]
+	if offset > maxOffset {
+		offset = maxOffset
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	end := offset + height
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[offset:end]
 
 	var rows []string
 	for _, line := range visible {
