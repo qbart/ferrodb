@@ -196,6 +196,13 @@ func (c Content) ActiveText() string {
 	return ""
 }
 
+func (c Content) ActiveResultData() ResultData {
+	if len(c.results) > 0 && c.Tabs.Active < len(c.results) {
+		return c.results[c.Tabs.Active].data
+	}
+	return ResultData{}
+}
+
 func (c *Content) SetResult(data ResultData) {
 	if len(c.results) > 0 && c.Tabs.Active < len(c.results) {
 		c.results[c.Tabs.Active].SetData(data)

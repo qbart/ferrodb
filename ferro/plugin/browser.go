@@ -29,3 +29,29 @@ type BrowserQueryResult struct {
 	Rows        [][]string
 	ColumnTypes []string
 }
+
+type BrowserExplainPlan struct {
+	NodeType          string               `json:"Node Type"`
+	RelationName      string               `json:"Relation Name,omitempty"`
+	Alias             string               `json:"Alias,omitempty"`
+	Schema            string               `json:"Schema,omitempty"`
+	StartupCost       float64              `json:"Startup Cost"`
+	TotalCost         float64              `json:"Total Cost"`
+	PlanRows          int64                `json:"Plan Rows"`
+	PlanWidth         int64                `json:"Plan Width"`
+	ActualStartupTime float64              `json:"Actual Startup Time,omitempty"`
+	ActualTotalTime   float64              `json:"Actual Total Time,omitempty"`
+	ActualRows        int64                `json:"Actual Rows,omitempty"`
+	ActualLoops       int64                `json:"Actual Loops,omitempty"`
+	SharedHitBlocks   int64                `json:"Shared Hit Blocks,omitempty"`
+	SharedReadBlocks  int64                `json:"Shared Read Blocks,omitempty"`
+	SharedDirtiedBlocks int64              `json:"Shared Dirtied Blocks,omitempty"`
+	SharedWrittenBlocks int64              `json:"Shared Written Blocks,omitempty"`
+	Plans             []BrowserExplainPlan `json:"Plans,omitempty"`
+}
+
+type BrowserExplainResult struct {
+	Plan          BrowserExplainPlan `json:"Plan"`
+	PlanningTime  float64            `json:"Planning Time"`
+	ExecutionTime float64            `json:"Execution Time"`
+}

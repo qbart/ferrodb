@@ -52,6 +52,7 @@ type TUI struct {
 	content     Content
 	help        Help
 	rowDetail   RowDetail
+	explainView ExplainView
 	footer      Footer
 }
 
@@ -81,6 +82,7 @@ func New(opts Options) TUI {
 		sidebarOpen: true,
 		help:        NewHelp(theme),
 		rowDetail:   NewRowDetail(theme),
+		explainView: NewExplainView(theme),
 		footer:      NewFooter(theme),
 	}
 }
@@ -432,6 +434,26 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.footer.QueryDone = false
 			t.footer.QueryStart = now
 			return t, tea.Batch(runQueryCmd(t.opts, sql, now), tickCmd())
+		case "ctrl+e":
+			data := t.content.ActiveResultData()
+			result, err := ParseExplainResult(data)
+			if err != nil {
+				t.explainView.SetError(err.Error())
+			} else {
+				t.explainView.SetResult(result)
+			}
+			t.navbar.Active = NavExplain
+			return t, nil
+		}
+
+		if t.navbar.Active == NavExplain {
+			switch msg.String() {
+			case "up", "k":
+				t.explainView.ScrollUp()
+			case "down", "j":
+				t.explainView.ScrollDown(t.height - 2)
+			}
+			return t, nil
 		}
 
 		if t.focus == FocusResults {
@@ -508,11 +530,7 @@ func (t TUI) View() string {
 			Render("▏")
 		bodyHeight := mainHeight - 1
 		sep := strings.Repeat(sepLine+"\n", bodyHeight-1) + sepLine
-		body := lipgloss.NewStyle().
-			Width(explainWidth).
-			Height(bodyHeight).
-			Background(t.theme.Bg).
-			Render("")
+		body := t.explainView.View(explainWidth, bodyHeight)
 		bodyRow := lipgloss.JoinHorizontal(lipgloss.Top, sep, body)
 		explain := lipgloss.JoinVertical(lipgloss.Left, header, bodyRow)
 		main = lipgloss.JoinHorizontal(lipgloss.Top, nav, explain)
