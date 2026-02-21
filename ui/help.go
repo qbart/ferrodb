@@ -13,23 +13,23 @@ var shortcuts = []struct {
 }{
 	{section: "Global"},
 	{"F1", "Toggle help", ""},
-	{"Ctrl+C", "Quit", ""},
+	{"Ctrl+c", "Quit", ""},
 	{"Tab / Shift+Tab", "Cycle focus", ""},
 	{"Ctrl+\\", "Toggle sidebar", ""},
-	{"Ctrl+T", "New tab", ""},
-	{"Ctrl+W", "Close tab", ""},
-	{"Ctrl+R", "Run query", ""},
-	{"Ctrl+Left", "Previous tab", ""},
-	{"Ctrl+Right", "Next tab", ""},
+	{"Ctrl+t", "New tab", ""},
+	{"Ctrl+w", "Close tab", ""},
+	{"Ctrl+r", "Run query", ""},
+	{"Ctrl+h / Ctrl+Left", "Previous tab", ""},
+	{"Ctrl+l / Ctrl+Right", "Next tab", ""},
 	{section: "Tree"},
-	{"↑ ↓", "Navigate", ""},
-	{"→", "Expand / load", ""},
-	{"←", "Collapse parent", ""},
+	{"↓ ↑ / j k", "Navigate", ""},
+	{"→ / l", "Expand / load", ""},
+	{"← / h", "Collapse parent", ""},
 	{"Enter", "Open & run query", ""},
-	{"Shift+R", "Reload tree", ""},
+	{"Shift+r", "Reload tree", ""},
 	{section: "Results"},
-	{"↑ ↓", "Move row cursor", ""},
-	{"← →", "Scroll columns", ""},
+	{"↓ ↑ / j k", "Move row cursor", ""},
+	{"← → / h l", "Scroll columns", ""},
 	{"Enter", "View row detail", ""},
 }
 
@@ -60,10 +60,12 @@ func (h Help) View(width, height int) string {
 		Foreground(h.theme.Accent).
 		Background(h.theme.SidebarBg)
 
+	innerWidth := boxWidth - 4 // subtract Padding(1,2) left+right
+	keyWidth := innerWidth / 2
 	keyStyle := lipgloss.NewStyle().
 		Foreground(h.theme.Fg).
 		Background(h.theme.SidebarBg).
-		Width(16)
+		Width(keyWidth)
 
 	descStyle := lipgloss.NewStyle().
 		Foreground(h.theme.Muted).
