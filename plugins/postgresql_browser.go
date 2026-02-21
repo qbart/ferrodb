@@ -35,7 +35,20 @@ func (b *PostgreSQLBrowser) Disconnect(ctx context.Context) error {
 
 func (b *PostgreSQLBrowser) Show(ctx context.Context, ids []string) (string, error) {
 	if len(ids) >= 3 {
-		return fmt.Sprintf("SELECT * FROM %s.%s LIMIT 100", ids[0], ids[2]), nil
+		objectType := ids[1]
+		switch objectType {
+		case "table", "view", "matview", "foreign_table":
+			return fmt.Sprintf("SELECT * FROM %s.%s LIMIT 100", ids[0], ids[2]), nil
+		case "enum":
+			return fmt.Sprintf(
+				"SELECT enumlabel AS value FROM pg_enum"+
+					" JOIN pg_type ON pg_enum.enumtypid = pg_type.oid"+
+					" JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid"+
+					" WHERE pg_namespace.nspname = '%s' AND pg_type.typname = '%s'"+
+					" ORDER BY enumsortorder",
+				ids[0], ids[2],
+			), nil
+		}
 	}
 	return "", nil
 }
@@ -133,6 +146,14 @@ func (b *PostgreSQLBrowser) List(ctx context.Context, ids []string) ([]plugin.Br
 		return []plugin.BrowserItem{
 			{ID: "table", Name: "Tables", HasChildren: true},
 			{ID: "view", Name: "Views", HasChildren: true},
+			{ID: "matview", Name: "Materialized Views", HasChildren: true},
+			{ID: "function", Name: "Functions", HasChildren: true},
+			{ID: "type", Name: "Types", HasChildren: true},
+			{ID: "enum", Name: "Enums", HasChildren: true},
+			{ID: "domain", Name: "Domains", HasChildren: true},
+			{ID: "composite", Name: "Composite Types", HasChildren: true},
+			{ID: "sequence", Name: "Sequences", HasChildren: true},
+			{ID: "foreign_table", Name: "Foreign Tables", HasChildren: true},
 		}, nil
 	case 2:
 		schema, objectType := ids[0], ids[1]
@@ -141,6 +162,22 @@ func (b *PostgreSQLBrowser) List(ctx context.Context, ids []string) ([]plugin.Br
 			return b.listTables(ctx, schema)
 		case "view":
 			return b.listViews(ctx, schema)
+		case "matview":
+			return b.listMatViews(ctx, schema)
+		case "function":
+			return b.listFunctions(ctx, schema)
+		case "type":
+			return b.listTypes(ctx, schema)
+		case "enum":
+			return b.listEnums(ctx, schema)
+		case "domain":
+			return b.listDomains(ctx, schema)
+		case "composite":
+			return b.listCompositeTypes(ctx, schema)
+		case "sequence":
+			return b.listSequences(ctx, schema)
+		case "foreign_table":
+			return b.listForeignTables(ctx, schema)
 		}
 	}
 	return nil, fmt.Errorf("unsupported path depth: %d", len(ids))
@@ -184,6 +221,158 @@ func (b *PostgreSQLBrowser) listTables(ctx context.Context, schema string) ([]pl
 func (b *PostgreSQLBrowser) listViews(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
 	rows, err := b.conn.Conn.Query(ctx,
 		`SELECT table_name FROM information_schema.views WHERE table_schema = $1 ORDER BY table_name`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listMatViews(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT matviewname FROM pg_matviews WHERE schemaname = $1 ORDER BY matviewname`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listFunctions(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT routine_name FROM information_schema.routines WHERE routine_schema = $1 AND routine_type = 'FUNCTION' ORDER BY routine_name`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listTypes(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT t.typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE n.nspname = $1 AND t.typtype = 'r' ORDER BY t.typname`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listEnums(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT t.typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE n.nspname = $1 AND t.typtype = 'e' ORDER BY t.typname`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listDomains(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT t.typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE n.nspname = $1 AND t.typtype = 'd' ORDER BY t.typname`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listCompositeTypes(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT t.typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid JOIN pg_class c ON t.typrelid = c.oid WHERE n.nspname = $1 AND t.typtype = 'c' AND c.relkind = 'c' ORDER BY t.typname`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listSequences(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = $1 ORDER BY sequence_name`,
+		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listForeignTables(ctx context.Context, schema string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT foreign_table_name FROM information_schema.foreign_tables WHERE foreign_table_schema = $1 ORDER BY foreign_table_name`,
 		schema,
 	)
 	if err != nil {
