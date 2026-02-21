@@ -33,7 +33,8 @@ type itemLoadedMsg struct {
 }
 
 type showItemMsg struct {
-	query string
+	query   string
+	autoRun bool
 }
 
 type tickMsg time.Time
@@ -158,7 +159,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func showItemCmd(opts Options, ids []string) tea.Cmd {
+func showItemCmd(opts Options, ids []string, autoRun bool) tea.Cmd {
 	return func() tea.Msg {
 		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
 		if err != nil {
@@ -173,7 +174,7 @@ func showItemCmd(opts Options, ids []string) tea.Cmd {
 		if err != nil || query == "" {
 			return nil
 		}
-		return showItemMsg{query: query}
+		return showItemMsg{query: query, autoRun: autoRun}
 	}
 }
 
@@ -269,6 +270,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.focus = FocusEditor
 		t.content.Focus()
 		t.sidebar.Tree.Focused = false
+		if msg.autoRun && msg.query != "" && !t.footer.Running {
+			now := time.Now()
+			t.footer.Running = true
+			t.footer.QueryDone = false
+			t.footer.QueryStart = now
+			return t, tea.Batch(runQueryCmd(t.opts, msg.query, now), tickCmd())
+		}
 		return t, nil
 
 	case tickMsg:
@@ -383,11 +391,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ids, ok := t.sidebar.Tree.StartLoading(); ok {
 					return t, tea.Batch(loadItemCmd(t.opts, ids), tickCmd())
 				}
-				if !t.sidebar.Tree.CursorExpandable() {
-					return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath())
-				}
 				t.sidebar.Tree.Expand()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
+			case "enter":
+				if !t.sidebar.Tree.CursorExpandable() {
+					return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath(), true)
+				}
 			case "R":
 				return t, t.reloadCmd()
 			}
