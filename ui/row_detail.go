@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"golang.design/x/clipboard"
 )
 
 type RowDetail struct {
@@ -81,10 +80,7 @@ func (r *RowDetail) Copy() {
 	if r.colCursor >= len(r.values) {
 		return
 	}
-	if err := clipboard.Init(); err != nil {
-		return
-	}
-	clipboard.Write(clipboard.FmtText, []byte(r.values[r.colCursor]))
+	ClipboardWriteString(r.values[r.colCursor])
 }
 
 // syncColCursor updates colCursor to match the current rowOffset.

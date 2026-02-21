@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/qbart/ferrodb/ferro/plugin"
 	"github.com/qbart/ferrodb/plugins"
-	"golang.design/x/clipboard"
 )
 
 type FocusArea int
@@ -438,9 +437,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, tea.Batch(runQueryCmd(t.opts, sql, now), tickCmd())
 		case "ctrl+y":
 			if text := t.content.ActiveText(); text != "" {
-				if err := clipboard.Init(); err == nil {
-					clipboard.Write(clipboard.FmtText, []byte(text))
-				}
+				ClipboardWriteString(text)
 			}
 			return t, nil
 		case "ctrl+e":
@@ -518,9 +515,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, t.reloadCmd()
 			case "y":
 				if label := t.sidebar.Tree.CursorLabel(); label != "" {
-					if err := clipboard.Init(); err == nil {
-						clipboard.Write(clipboard.FmtText, []byte(label))
-					}
+					ClipboardWriteString(label)
 				}
 			}
 			return t, nil
