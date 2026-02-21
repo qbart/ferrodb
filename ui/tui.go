@@ -397,6 +397,9 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.content.CloseTab()
 			}
 			return t, nil
+		case "ctrl+g":
+			t.navbar.Next()
+			return t, nil
 		case "ctrl+t":
 			t.content.AddTab()
 			return t, nil

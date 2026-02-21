@@ -16,6 +16,7 @@ var shortcuts = []struct {
 	{"Ctrl+c", "Quit", ""},
 	{"Tab / Shift+Tab", "Cycle focus", ""},
 	{"Ctrl+\\", "Toggle sidebar", ""},
+	{"Ctrl+g", "Toggle Data / Explain mode", ""},
 	{"Ctrl+t", "New tab", ""},
 	{"Ctrl+w", "Close tab", ""},
 	{"Ctrl+r", "Run query", ""},
