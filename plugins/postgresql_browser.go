@@ -179,6 +179,29 @@ func (b *PostgreSQLBrowser) List(ctx context.Context, ids []string) ([]plugin.Br
 		case "foreign_table":
 			return b.listForeignTables(ctx, schema)
 		}
+	case 3:
+		schema, objectType, name := ids[0], ids[1], ids[2]
+		if objectType == "table" {
+			return b.listTableCategories(ctx, schema, name)
+		}
+	case 4:
+		schema, objectType, tableName, category := ids[0], ids[1], ids[2], ids[3]
+		if objectType == "table" {
+			switch category {
+			case "column":
+				return b.listColumns(ctx, schema, tableName)
+			case "index":
+				return b.listIndexes(ctx, schema, tableName)
+			case "constraint":
+				return b.listConstraints(ctx, schema, tableName)
+			case "trigger":
+				return b.listTriggers(ctx, schema, tableName)
+			case "partition":
+				return b.listPartitions(ctx, schema, tableName)
+			case "policy":
+				return b.listPolicies(ctx, schema, tableName)
+			}
+		}
 	}
 	return nil, fmt.Errorf("unsupported path depth: %d", len(ids))
 }
@@ -203,6 +226,141 @@ func (b *PostgreSQLBrowser) listTables(ctx context.Context, schema string) ([]pl
 	rows, err := b.conn.Conn.Query(ctx,
 		`SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
 		schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: true}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listTableCategories(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	categories := []plugin.BrowserItem{
+		{ID: "column", Name: "Columns", HasChildren: true},
+		{ID: "index", Name: "Indexes", HasChildren: true},
+		{ID: "constraint", Name: "Constraints", HasChildren: true},
+		{ID: "trigger", Name: "Triggers", HasChildren: true},
+		{ID: "policy", Name: "Policies", HasChildren: true},
+	}
+
+	var relkind string
+	err := b.conn.Conn.QueryRow(ctx,
+		`SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = $1 AND c.relname = $2`,
+		schema, table,
+	).Scan(&relkind)
+	if err == nil && relkind == "p" {
+		categories = append(categories, plugin.BrowserItem{ID: "partition", Name: "Partitions", HasChildren: true})
+	}
+
+	return categories, nil
+}
+
+func (b *PostgreSQLBrowser) listColumns(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
+		schema, table,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listIndexes(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT indexname FROM pg_indexes WHERE schemaname = $1 AND tablename = $2 ORDER BY indexname`,
+		schema, table,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listConstraints(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = $1 AND table_name = $2 ORDER BY constraint_name`,
+		schema, table,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listTriggers(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT DISTINCT trigger_name FROM information_schema.triggers WHERE trigger_schema = $1 AND event_object_table = $2 ORDER BY trigger_name`,
+		schema, table,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listPartitions(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT c.relname FROM pg_inherits i JOIN pg_class c ON i.inhrelid = c.oid JOIN pg_class p ON i.inhparent = p.oid JOIN pg_namespace n ON p.relnamespace = n.oid WHERE n.nspname = $1 AND p.relname = $2 ORDER BY c.relname`,
+		schema, table,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
+		var name string
+		if err := row.Scan(&name); err != nil {
+			return plugin.BrowserItem{}, err
+		}
+		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+	})
+}
+
+func (b *PostgreSQLBrowser) listPolicies(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
+	rows, err := b.conn.Conn.Query(ctx,
+		`SELECT policyname FROM pg_policies WHERE schemaname = $1 AND tablename = $2 ORDER BY policyname`,
+		schema, table,
 	)
 	if err != nil {
 		return nil, err
