@@ -16,9 +16,11 @@ type ExplainView struct {
 }
 
 type explainLine struct {
-	text  string
-	color lipgloss.Color
-	bold  bool
+	text     string
+	color    lipgloss.Color
+	bold     bool
+	bordered bool   // true = render with │ frame; indent is the nodePrefix
+	indent   string // nodePrefix placed before │ (may be "" for root)
 }
 
 func NewExplainView(theme Theme) ExplainView {
@@ -100,26 +102,35 @@ func buildNodeBox(lines []explainLine, node plugin.BrowserExplainNode, prefix st
 		boxContentWidth = 20
 	}
 
-	borderColor := lipgloss.Color("240")
+	const borderColor = lipgloss.Color("240")
 	hLine := strings.Repeat("─", boxContentWidth+2)
+
+	border := func(s string) explainLine {
+		return explainLine{text: s, color: borderColor}
+	}
+	cell := func(text string, color lipgloss.Color, bold bool) explainLine {
+		return explainLine{
+			text:     explainPad(text, boxContentWidth),
+			color:    color,
+			bold:     bold,
+			bordered: true,
+			indent:   nodePrefix,
+		}
+	}
 
 	// Box top — root has no arrow; children get ├─▶ or └─▶
 	if isRoot {
-		lines = append(lines, explainLine{text: nodePrefix + "┌" + hLine + "┐", color: borderColor})
+		lines = append(lines, border(nodePrefix+"┌"+hLine+"┐"))
 	} else {
 		arrow := "├─▶ "
 		if isLast {
 			arrow = "└─▶ "
 		}
-		lines = append(lines, explainLine{text: prefix + arrow + "┌" + hLine + "┐", color: borderColor})
+		lines = append(lines, border(prefix+arrow+"┌"+hLine+"┐"))
 	}
 
 	// Node name — always bold accent
-	lines = append(lines, explainLine{
-		text:  nodePrefix + "│ " + explainPad(node.Name, boxContentWidth) + " │",
-		color: lipgloss.Color("6"),
-		bold:  true,
-	})
+	lines = append(lines, cell(node.Name, lipgloss.Color("6"), true))
 
 	// Content lines — highlighted lines stand out, rest are muted
 	for _, line := range node.Lines {
@@ -127,19 +138,16 @@ func buildNodeBox(lines []explainLine, node plugin.BrowserExplainNode, prefix st
 		if line.Highlight {
 			color = lipgloss.Color("3")
 		}
-		lines = append(lines, explainLine{
-			text:  nodePrefix + "│ " + explainPad(line.Text, boxContentWidth) + " │",
-			color: color,
-		})
+		lines = append(lines, cell(line.Text, color, false))
 	}
 
 	// Box bottom
-	lines = append(lines, explainLine{text: nodePrefix + "└" + hLine + "┘", color: borderColor})
+	lines = append(lines, border(nodePrefix+"└"+hLine+"┘"))
 
 	// Children
 	for i, child := range node.Children {
 		childIsLast := i == len(node.Children)-1
-		lines = append(lines, explainLine{text: nodePrefix + "│", color: borderColor})
+		lines = append(lines, border(nodePrefix+"│"))
 		lines = buildNodeBox(lines, child, nodePrefix, nodeDepth+1, childIsLast, false, totalWidth)
 	}
 
@@ -211,20 +219,24 @@ func (e ExplainView) View(width, height int) string {
 	}
 	visible := lines[offset:end]
 
+	borderStyle := lipgloss.NewStyle().Background(e.theme.Bg).Foreground(lipgloss.Color("240"))
+
 	var rows []string
 	for _, line := range visible {
 		if line.text == "" {
 			rows = append(rows, bg.Render(""))
 			continue
 		}
-		style := lipgloss.NewStyle().
-			Background(e.theme.Bg).
-			Foreground(line.color).
-			Width(width)
-		if line.bold {
-			style = style.Bold(true)
+		if !line.bordered {
+			rows = append(rows, lipgloss.NewStyle().Background(e.theme.Bg).Foreground(line.color).Width(width).Render(line.text))
+			continue
 		}
-		rows = append(rows, style.Render(line.text))
+		// Bordered content line: indent+│ in border color, text in content color, │ in border color
+		contentStyle := lipgloss.NewStyle().Background(e.theme.Bg).Foreground(line.color)
+		if line.bold {
+			contentStyle = contentStyle.Bold(true)
+		}
+		rows = append(rows, borderStyle.Render(line.indent+"│ ")+contentStyle.Render(line.text)+borderStyle.Render(" │"))
 	}
 	for len(rows) < height {
 		rows = append(rows, bg.Render(""))
