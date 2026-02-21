@@ -312,11 +312,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.rowDetail.ScrollUp()
 			case "down":
 				all := t.rowDetail.buildLines()
-				t.rowDetail.ScrollDown(len(all), t.height)
+				t.rowDetail.ScrollDown(len(all), t.height-1)
+			case "j":
+				t.rowDetail.JumpNext()
+			case "k":
+				t.rowDetail.JumpPrev()
 			case "left":
 				t.rowDetail.ScrollLeft()
 			case "right":
 				t.rowDetail.ScrollRight()
+			case "y":
+				t.rowDetail.Copy()
 			}
 			return t, nil
 		}
