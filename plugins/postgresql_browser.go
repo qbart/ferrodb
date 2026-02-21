@@ -606,7 +606,7 @@ func (b *PostgreSQLBrowser) listTableCategories(ctx context.Context, schema, tab
 
 func (b *PostgreSQLBrowser) listColumns(ctx context.Context, schema, table string) ([]plugin.BrowserItem, error) {
 	rows, err := b.conn.Conn.Query(ctx,
-		`SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
+		`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
 		schema, table,
 	)
 	if err != nil {
@@ -615,11 +615,11 @@ func (b *PostgreSQLBrowser) listColumns(ctx context.Context, schema, table strin
 	defer rows.Close()
 
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (plugin.BrowserItem, error) {
-		var name string
-		if err := row.Scan(&name); err != nil {
+		var name, dataType string
+		if err := row.Scan(&name, &dataType); err != nil {
 			return plugin.BrowserItem{}, err
 		}
-		return plugin.BrowserItem{ID: name, Name: name, HasChildren: false}, nil
+		return plugin.BrowserItem{ID: name, Name: name + " (" + dataType + ")", HasChildren: false}, nil
 	})
 }
 

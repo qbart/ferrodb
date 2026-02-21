@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/qbart/ferrodb/ferro/plugin"
 	"github.com/qbart/ferrodb/plugins"
+	"golang.design/x/clipboard"
 )
 
 type FocusArea int
@@ -435,6 +436,13 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.footer.QueryDone = false
 			t.footer.QueryStart = now
 			return t, tea.Batch(runQueryCmd(t.opts, sql, now), tickCmd())
+		case "ctrl+y":
+			if text := t.content.ActiveText(); text != "" {
+				if err := clipboard.Init(); err == nil {
+					clipboard.Write(clipboard.FmtText, []byte(text))
+				}
+			}
+			return t, nil
 		case "ctrl+e":
 			data := t.content.ActiveResultData()
 			browser, err := t.opts.Registry.GetBrowser(t.opts.RawDriver)
@@ -508,6 +516,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath(), true)
 			case "R":
 				return t, t.reloadCmd()
+			case "y":
+				if label := t.sidebar.Tree.CursorLabel(); label != "" {
+					if err := clipboard.Init(); err == nil {
+						clipboard.Write(clipboard.FmtText, []byte(label))
+					}
+				}
 			}
 			return t, nil
 		}

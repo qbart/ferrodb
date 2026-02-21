@@ -159,6 +159,15 @@ func (t *Tree) CursorExpandable() bool {
 	return item != nil && item.Expandable
 }
 
+func (t *Tree) CursorLabel() string {
+	counter := 0
+	item := itemAtCursor(t.Items, t.Cursor, &counter)
+	if item == nil {
+		return ""
+	}
+	return item.Label
+}
+
 func (t *Tree) CursorIDPath() []string {
 	counter := 0
 	_, path := findItemWithPath(t.Items, t.Cursor, &counter, nil)
