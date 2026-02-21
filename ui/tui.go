@@ -60,7 +60,8 @@ func New(opts Options) TUI {
 	sidebar := NewSidebar(theme)
 	sidebar.Tree.Items = []TreeItem{}
 	if opts.Version != "" {
-		sidebar.Title = "ferroDB " + opts.Version
+		sidebar.Title = "ferroDB"
+		sidebar.Version = opts.Version
 	}
 
 	content := NewContent(theme)

@@ -3,9 +3,10 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 type Sidebar struct {
-	Title string
-	Tree  Tree
-	theme Theme
+	Title   string
+	Version string
+	Tree    Tree
+	theme   Theme
 }
 
 func NewSidebar(theme Theme) Sidebar {
@@ -13,13 +14,26 @@ func NewSidebar(theme Theme) Sidebar {
 }
 
 func (s Sidebar) View(width, height int) string {
-	headerStyle := lipgloss.NewStyle().
+	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Background(s.theme.SidebarHeaderBg).
-		Foreground(s.theme.SidebarHeaderFg).
+		Foreground(s.theme.SidebarHeaderFg)
+
+	versionStyle := lipgloss.NewStyle().
+		Background(s.theme.SidebarHeaderBg).
+		Foreground(s.theme.Muted)
+
+	headerStyle := lipgloss.NewStyle().
+		Background(s.theme.SidebarHeaderBg).
 		Width(width)
 
-	header := headerStyle.Render(" " + s.Title)
+	spaceStyle := lipgloss.NewStyle().Background(s.theme.SidebarHeaderBg)
+
+	content := " " + titleStyle.Render(s.Title)
+	if s.Version != "" {
+		content += spaceStyle.Render(" ") + versionStyle.Render(s.Version)
+	}
+	header := headerStyle.Render(content)
 
 	bodyHeight := max(0, height-1)
 	bodyStyle := lipgloss.NewStyle().
