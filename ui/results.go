@@ -128,15 +128,18 @@ func (r Results) View(width, height int, focused bool) string {
 			Render("")
 	}
 
-	headerBg := r.theme.AccentInactive
+	var headerStyle lipgloss.Style
 	if focused {
-		headerBg = r.theme.FooterBg
+		headerStyle = lipgloss.NewStyle().
+			Background(r.theme.SidebarHeaderBg).
+			Foreground(r.theme.Fg).
+			Bold(true)
+	} else {
+		headerStyle = lipgloss.NewStyle().
+			Background(r.theme.SidebarBg).
+			Foreground(r.theme.Muted).
+			Bold(true)
 	}
-
-	headerStyle := lipgloss.NewStyle().
-		Background(headerBg).
-		Foreground(r.theme.FooterFg).
-		Bold(true)
 
 	cellStyle := lipgloss.NewStyle().
 		Background(r.theme.Bg).

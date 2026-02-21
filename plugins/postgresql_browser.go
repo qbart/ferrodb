@@ -3,6 +3,7 @@ package plugins
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -68,7 +69,15 @@ func pgValueToString(v any, oid uint32) string {
 		}
 	case 114, 3802: // json, jsonb — pgx returns []byte
 		if b, ok := v.([]byte); ok {
-			return string(b)
+			var parsed any
+			if err := json.Unmarshal(b, &parsed); err != nil {
+				return err.Error()
+			}
+			marshaled, err := json.Marshal(parsed)
+			if err != nil {
+				return err.Error()
+			}
+			return string(marshaled)
 		}
 	}
 	return fmt.Sprintf("%v", v)
