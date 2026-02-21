@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -491,7 +492,31 @@ func (t TUI) View() string {
 	mainHeight := t.height - 1
 
 	var main string
-	if t.sidebarOpen {
+	if t.navbar.Active == NavExplain {
+		sepWidth := 1
+		explainWidth := t.width - navWidth - sepWidth
+		nav := t.navbar.View(mainHeight)
+		header := lipgloss.NewStyle().
+			Width(explainWidth+sepWidth).
+			Background(t.theme.SidebarHeaderBg).
+			Foreground(t.theme.SidebarHeaderFg).
+			Bold(true).
+			Render(" Explain")
+		sepLine := lipgloss.NewStyle().
+			Background(t.theme.NavBg).
+			Foreground(t.theme.SidebarHeaderBg).
+			Render("▏")
+		bodyHeight := mainHeight - 1
+		sep := strings.Repeat(sepLine+"\n", bodyHeight-1) + sepLine
+		body := lipgloss.NewStyle().
+			Width(explainWidth).
+			Height(bodyHeight).
+			Background(t.theme.Bg).
+			Render("")
+		bodyRow := lipgloss.JoinHorizontal(lipgloss.Top, sep, body)
+		explain := lipgloss.JoinVertical(lipgloss.Left, header, bodyRow)
+		main = lipgloss.JoinHorizontal(lipgloss.Top, nav, explain)
+	} else if t.sidebarOpen {
 		sidebarWidth := t.width*25/100 - navWidth
 		contentWidth := t.width - sidebarWidth - navWidth
 		nav := t.navbar.View(mainHeight)
