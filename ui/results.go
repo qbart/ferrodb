@@ -17,6 +17,7 @@ type ResultData struct {
 
 type Results struct {
 	data      ResultData
+	cursor    int
 	rowOffset int
 	colOffset int
 	widths    []int
@@ -29,20 +30,33 @@ func NewResults(theme Theme) Results {
 
 func (r *Results) SetData(data ResultData) {
 	r.data = data
+	r.cursor = 0
 	r.rowOffset = 0
 	r.colOffset = 0
 	r.widths = computeWidths(data)
 }
 
-func (r *Results) ScrollUp() {
-	if r.rowOffset > 0 {
-		r.rowOffset--
+func (r *Results) MoveUp() {
+	if r.cursor > 0 {
+		r.cursor--
 	}
 }
 
-func (r *Results) ScrollDown() {
-	if r.rowOffset < len(r.data.Rows)-1 {
-		r.rowOffset++
+func (r *Results) MoveDown() {
+	if r.cursor < len(r.data.Rows)-1 {
+		r.cursor++
+	}
+}
+
+func (r *Results) EnsureVisible(height int) {
+	if height <= 0 {
+		return
+	}
+	if r.cursor < r.rowOffset {
+		r.rowOffset = r.cursor
+	}
+	if r.cursor >= r.rowOffset+height {
+		r.rowOffset = r.cursor - height + 1
 	}
 }
 
@@ -82,8 +96,7 @@ func runeLen(s string) int {
 func computeWidths(data ResultData) []int {
 	widths := make([]int, len(data.Headers))
 	for i, h := range data.Headers {
-		w := runeLen(normalizeCell(h))
-		widths[i] = w
+		widths[i] = runeLen(normalizeCell(h))
 	}
 	for _, row := range data.Rows {
 		for i := range widths {
@@ -129,6 +142,14 @@ func (r Results) View(width, height int, focused bool) string {
 		Background(r.theme.Bg).
 		Foreground(r.theme.Fg)
 
+	cursorStyle := lipgloss.NewStyle().
+		Background(r.theme.NavActiveBg).
+		Foreground(r.theme.NavActiveFg)
+
+	cursorBlurStyle := lipgloss.NewStyle().
+		Background(r.theme.AccentInactive).
+		Foreground(r.theme.FooterFg)
+
 	var lines []string
 
 	lines = append(lines, r.renderRow(r.data.Headers, headerStyle, width))
@@ -138,8 +159,17 @@ func (r Results) View(width, height int, focused bool) string {
 	if end > len(r.data.Rows) {
 		end = len(r.data.Rows)
 	}
-	for _, row := range r.data.Rows[r.rowOffset:end] {
-		lines = append(lines, r.renderRow(row, cellStyle, width))
+	for i, row := range r.data.Rows[r.rowOffset:end] {
+		actualIdx := r.rowOffset + i
+		if actualIdx == r.cursor {
+			if focused {
+				lines = append(lines, r.renderRow(row, cursorStyle, width))
+			} else {
+				lines = append(lines, r.renderRow(row, cursorBlurStyle, width))
+			}
+		} else {
+			lines = append(lines, r.renderRow(row, cellStyle, width))
+		}
 	}
 
 	for len(lines) < height {

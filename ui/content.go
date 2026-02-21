@@ -124,15 +124,21 @@ func (c *Content) BlurResults() {
 	c.resultsFocused = false
 }
 
-func (c *Content) ResultsScrollUp() {
+func (c *Content) ResultsMoveUp() {
 	if c.Tabs.Active < len(c.results) {
-		c.results[c.Tabs.Active].ScrollUp()
+		c.results[c.Tabs.Active].MoveUp()
 	}
 }
 
-func (c *Content) ResultsScrollDown() {
+func (c *Content) ResultsMoveDown() {
 	if c.Tabs.Active < len(c.results) {
-		c.results[c.Tabs.Active].ScrollDown()
+		c.results[c.Tabs.Active].MoveDown()
+	}
+}
+
+func (c *Content) ResultsEnsureVisible(height int) {
+	if c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].EnsureVisible(height)
 	}
 }
 

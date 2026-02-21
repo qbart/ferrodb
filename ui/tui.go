@@ -81,6 +81,13 @@ func (t *TUI) sidebarTreeHeight() int {
 	return max(0, t.height-4)
 }
 
+func (t *TUI) resultsDataHeight() int {
+	mainHeight := t.height - 1
+	bodyHeight := max(0, mainHeight-1)
+	topHeight := bodyHeight / 2
+	return max(0, bodyHeight-topHeight-1) // -1 for column header row
+}
+
 func (t *TUI) resizeContent() {
 	mainHeight := t.height - 1
 	if t.sidebarOpen {
@@ -348,9 +355,11 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if t.focus == FocusResults {
 			switch msg.String() {
 			case "up":
-				t.content.ResultsScrollUp()
+				t.content.ResultsMoveUp()
+				t.content.ResultsEnsureVisible(t.resultsDataHeight())
 			case "down":
-				t.content.ResultsScrollDown()
+				t.content.ResultsMoveDown()
+				t.content.ResultsEnsureVisible(t.resultsDataHeight())
 			case "left":
 				t.content.ResultsScrollLeft()
 			case "right":
