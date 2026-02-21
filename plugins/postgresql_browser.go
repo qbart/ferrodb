@@ -256,12 +256,20 @@ func (b *PostgreSQLBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin
 		rootTime = r.ExecutionTime
 	}
 	sortKB, hashKB := pgSumMemory(r.Plan)
+
+	var summary []plugin.BrowserExplainLine
+	summary = append(summary, plugin.BrowserExplainLine{Text: fmt.Sprintf("Planning Time:   %.3f ms", r.PlanningTime)})
+	summary = append(summary, plugin.BrowserExplainLine{Text: fmt.Sprintf("Execution Time:  %.3f ms", r.ExecutionTime)})
+	if sortKB > 0 {
+		summary = append(summary, plugin.BrowserExplainLine{Text: fmt.Sprintf("Sort Memory:     %d kB", sortKB)})
+	}
+	if hashKB > 0 {
+		summary = append(summary, plugin.BrowserExplainLine{Text: fmt.Sprintf("Hash Memory:     %d kB", hashKB)})
+	}
+
 	return plugin.BrowserExplainResult{
-		Root:              pgPlanToNode(r.Plan, rootTime),
-		PlanningTime:      r.PlanningTime,
-		ExecutionTime:     r.ExecutionTime,
-		TotalSortMemoryKB: sortKB,
-		TotalHashMemoryKB: hashKB,
+		Root:         pgPlanToNode(r.Plan, rootTime),
+		SummaryLines: summary,
 	}, nil
 }
 

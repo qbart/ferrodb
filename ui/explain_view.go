@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -69,26 +68,15 @@ func (e ExplainView) buildLines(width int) []explainLine {
 	}
 	var lines []explainLine
 	lines = buildNodeBox(lines, e.result.Root, "", 0, true, true, width)
-	lines = append(lines, explainLine{})
-	lines = append(lines, explainLine{
-		text:  fmt.Sprintf("  Planning Time:   %.3f ms", e.result.PlanningTime),
-		color: lipgloss.Color("243"),
-	})
-	lines = append(lines, explainLine{
-		text:  fmt.Sprintf("  Execution Time:  %.3f ms", e.result.ExecutionTime),
-		color: lipgloss.Color("243"),
-	})
-	if e.result.TotalSortMemoryKB > 0 {
-		lines = append(lines, explainLine{
-			text:  fmt.Sprintf("  Sort Memory:     %d kB", e.result.TotalSortMemoryKB),
-			color: lipgloss.Color("243"),
-		})
-	}
-	if e.result.TotalHashMemoryKB > 0 {
-		lines = append(lines, explainLine{
-			text:  fmt.Sprintf("  Hash Memory:     %d kB", e.result.TotalHashMemoryKB),
-			color: lipgloss.Color("243"),
-		})
+	if len(e.result.SummaryLines) > 0 {
+		lines = append(lines, explainLine{})
+		for _, sl := range e.result.SummaryLines {
+			color := lipgloss.Color("243")
+			if sl.Highlight {
+				color = lipgloss.Color("3")
+			}
+			lines = append(lines, explainLine{text: "  " + sl.Text, color: color})
+		}
 	}
 	return lines
 }
