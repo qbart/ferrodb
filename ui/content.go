@@ -175,6 +175,13 @@ func (c *Content) SetActiveText(text string) {
 	}
 }
 
+func (c Content) CurrentRow() (headers []string, values []string, ok bool) {
+	if c.Tabs.Active < len(c.results) {
+		return c.results[c.Tabs.Active].CurrentRow()
+	}
+	return nil, nil, false
+}
+
 func (c Content) HasResults() bool {
 	if c.Tabs.Active < len(c.results) {
 		return c.results[c.Tabs.Active].HasData()

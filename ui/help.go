@@ -30,6 +30,7 @@ var shortcuts = []struct {
 	{section: "Results"},
 	{"↑ ↓", "Move row cursor", ""},
 	{"← →", "Scroll columns", ""},
+	{"Enter", "View row detail", ""},
 }
 
 type Help struct {

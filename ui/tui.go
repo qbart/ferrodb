@@ -50,6 +50,7 @@ type TUI struct {
 	sidebar     Sidebar
 	content     Content
 	help        Help
+	rowDetail   RowDetail
 	footer      Footer
 }
 
@@ -74,6 +75,7 @@ func New(opts Options) TUI {
 		content:     content,
 		sidebarOpen: true,
 		help:        NewHelp(theme),
+		rowDetail:   NewRowDetail(theme),
 		footer:      NewFooter(theme),
 	}
 }
@@ -293,6 +295,32 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return t, nil
 
 	case tea.KeyMsg:
+		// overlays consume all keys first
+		if t.help.Visible {
+			switch msg.String() {
+			case "f1", "esc", "ctrl+c":
+				t.help.Visible = false
+			}
+			return t, nil
+		}
+
+		if t.rowDetail.Visible {
+			switch msg.String() {
+			case "esc", "enter", "ctrl+c":
+				t.rowDetail.Close()
+			case "up":
+				t.rowDetail.ScrollUp()
+			case "down":
+				all := t.rowDetail.buildLines()
+				t.rowDetail.ScrollDown(len(all), t.height)
+			case "left":
+				t.rowDetail.ScrollLeft()
+			case "right":
+				t.rowDetail.ScrollRight()
+			}
+			return t, nil
+		}
+
 		switch msg.String() {
 		case "ctrl+c":
 			return t, tea.Quit
@@ -352,7 +380,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return t, nil
 		case "f1":
-			t.help.Visible = !t.help.Visible
+			t.help.Visible = true
 			return t, nil
 		case "ctrl+w":
 			if t.focus == FocusEditor {
@@ -404,6 +432,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.content.ResultsScrollLeft()
 			case "right":
 				t.content.ResultsScrollRight()
+			case "enter":
+				if headers, values, ok := t.content.CurrentRow(); ok {
+					t.rowDetail.Open(headers, values)
+				}
 			}
 			return t, nil
 		}
@@ -480,6 +512,10 @@ func (t TUI) View() string {
 
 	if t.help.Visible {
 		return t.help.View(t.width, t.height)
+	}
+
+	if t.rowDetail.Visible {
+		return t.rowDetail.View(t.width, t.height)
 	}
 
 	return screen

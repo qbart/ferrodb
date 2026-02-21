@@ -76,6 +76,13 @@ func (r Results) HasData() bool {
 	return len(r.data.Headers) > 0
 }
 
+func (r Results) CurrentRow() (headers []string, values []string, ok bool) {
+	if r.cursor < 0 || r.cursor >= len(r.data.Rows) {
+		return nil, nil, false
+	}
+	return r.data.Headers, r.data.Rows[r.cursor], true
+}
+
 func (r *Results) Resize(width, height int) {}
 
 func normalizeCell(s string) string {
