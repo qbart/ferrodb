@@ -14,11 +14,12 @@ type FocusArea int
 const (
 	FocusEditor FocusArea = iota
 	FocusTree
+	FocusResults
 )
 
 type queryDoneMsg struct {
-	result string
-	ms     int64
+	data ResultData
+	ms   int64
 }
 
 type loadDataMsg struct {
@@ -29,6 +30,10 @@ type loadDataMsg struct {
 type itemLoadedMsg struct {
 	ids      []string
 	children []TreeItem
+}
+
+type showItemMsg struct {
+	query string
 }
 
 type tickMsg time.Time
@@ -116,14 +121,27 @@ func (t TUI) Init() tea.Cmd {
 	return nil
 }
 
-func runFakeQuery(start time.Time) tea.Cmd {
+func errResult(msg string) ResultData {
+	return ResultData{Headers: []string{"error"}, Rows: [][]string{{msg}}}
+}
+
+func runQueryCmd(opts Options, sql string, start time.Time) tea.Cmd {
 	return func() tea.Msg {
-		time.Sleep(500 * time.Millisecond)
-		elapsed := time.Since(start).Milliseconds()
-		return queryDoneMsg{
-			result: " id | name       | email\n  1 | Alice      | alice@example.com\n  2 | Bob        | bob@example.com\n  3 | Charlie    | charlie@example.com\n  4 | Diana      | diana@example.com\n  5 | Eve        | eve@example.com\n\n(5 rows)",
-			ms:     elapsed,
+		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
+		if err != nil {
+			return queryDoneMsg{data: errResult(err.Error()), ms: time.Since(start).Milliseconds()}
 		}
+		ctx := context.Background()
+		if err := browser.Connect(ctx, opts.RawDSN); err != nil {
+			return queryDoneMsg{data: errResult(err.Error()), ms: time.Since(start).Milliseconds()}
+		}
+		defer browser.Disconnect(ctx)
+		result, err := browser.Query(ctx, sql)
+		elapsed := time.Since(start).Milliseconds()
+		if err != nil {
+			return queryDoneMsg{data: errResult(err.Error()), ms: elapsed}
+		}
+		return queryDoneMsg{data: ResultData{Headers: result.Headers, Rows: result.Rows, ColumnTypes: result.ColumnTypes}, ms: elapsed}
 	}
 }
 
@@ -144,8 +162,11 @@ func showItemCmd(opts Options, ids []string) tea.Cmd {
 			return nil
 		}
 		defer browser.Disconnect(ctx)
-		browser.Show(ctx, ids)
-		return nil
+		query, err := browser.Show(ctx, ids)
+		if err != nil || query == "" {
+			return nil
+		}
+		return showItemMsg{query: query}
 	}
 }
 
@@ -220,7 +241,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.footer.Running = false
 		t.footer.QueryDone = true
 		t.footer.QueryMs = msg.ms
-		t.content.SetResult(msg.result)
+		t.content.SetResult(msg.data)
 		return t, nil
 
 	case loadDataMsg:
@@ -233,6 +254,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case itemLoadedMsg:
 		t.sidebar.Tree.SetLoaded(msg.ids, msg.children)
 		t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
+		return t, nil
+
+	case showItemMsg:
+		t.content.AddTab()
+		t.content.SetActiveText(msg.query)
+		t.focus = FocusEditor
+		t.content.Focus()
+		t.sidebar.Tree.Focused = false
 		return t, nil
 
 	case tickMsg:
@@ -253,14 +282,31 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return t, tea.Quit
 		case "ctrl+w":
-			if t.focus == FocusEditor {
-				t.focus = FocusTree
-				t.content.Blur()
-				t.sidebar.Tree.Focused = true
-			} else {
+			switch t.focus {
+			case FocusTree:
 				t.focus = FocusEditor
-				t.content.Focus()
 				t.sidebar.Tree.Focused = false
+				t.content.Focus()
+			case FocusEditor:
+				if t.content.HasResults() {
+					t.focus = FocusResults
+					t.content.Blur()
+					t.content.FocusResults()
+				} else if t.sidebarOpen {
+					t.focus = FocusTree
+					t.content.Blur()
+					t.sidebar.Tree.Focused = true
+				}
+			case FocusResults:
+				if t.sidebarOpen {
+					t.focus = FocusTree
+					t.content.BlurResults()
+					t.sidebar.Tree.Focused = true
+				} else {
+					t.focus = FocusEditor
+					t.content.BlurResults()
+					t.content.Focus()
+				}
 			}
 			return t, nil
 		case "f1":
@@ -277,31 +323,54 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		case "ctrl+\\":
 			t.sidebarOpen = !t.sidebarOpen
+			if !t.sidebarOpen && t.focus == FocusTree {
+				t.focus = FocusEditor
+				t.sidebar.Tree.Focused = false
+				t.content.Focus()
+			}
 			t.resizeContent()
 			return t, nil
 		case "ctrl+r":
 			if t.footer.Running {
 				return t, nil
 			}
+			sql := t.content.ActiveText()
+			if sql == "" {
+				return t, nil
+			}
 			now := time.Now()
 			t.footer.Running = true
 			t.footer.QueryDone = false
 			t.footer.QueryStart = now
-			return t, tea.Batch(runFakeQuery(now), tickCmd())
+			return t, tea.Batch(runQueryCmd(t.opts, sql, now), tickCmd())
+		}
+
+		if t.focus == FocusResults {
+			switch msg.String() {
+			case "up":
+				t.content.ResultsScrollUp()
+			case "down":
+				t.content.ResultsScrollDown()
+			case "left":
+				t.content.ResultsScrollLeft()
+			case "right":
+				t.content.ResultsScrollRight()
+			}
+			return t, nil
 		}
 
 		if t.focus == FocusTree {
 			switch msg.String() {
-			case "w":
+			case "up":
 				t.sidebar.Tree.MoveUp()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
-			case "s":
+			case "down":
 				t.sidebar.Tree.MoveDown()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
-			case "a":
+			case "left":
 				t.sidebar.Tree.Collapse()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
-			case "d":
+			case "right":
 				if ids, ok := t.sidebar.Tree.StartLoading(); ok {
 					return t, tea.Batch(loadItemCmd(t.opts, ids), tickCmd())
 				}

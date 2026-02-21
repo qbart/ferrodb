@@ -9,12 +9,13 @@ import (
 )
 
 type Content struct {
-	Tabs      Tabs
-	textareas []textarea.Model
-	results   []Results
-	width     int
-	height    int
-	theme     Theme
+	Tabs           Tabs
+	textareas      []textarea.Model
+	results        []Results
+	resultsFocused bool
+	width          int
+	height         int
+	theme          Theme
 }
 
 func NewContent(theme Theme) Content {
@@ -97,6 +98,7 @@ func (c *Content) Resize(width, height int) {
 
 func (c *Content) Focus() {
 	c.Tabs.Focused = true
+	c.resultsFocused = false
 	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
 		c.textareas[c.Tabs.Active].Focus()
 	}
@@ -104,8 +106,45 @@ func (c *Content) Focus() {
 
 func (c *Content) Blur() {
 	c.Tabs.Focused = false
+	c.resultsFocused = false
 	for i := range c.textareas {
 		c.textareas[i].Blur()
+	}
+}
+
+func (c *Content) FocusResults() {
+	c.Tabs.Focused = false
+	c.resultsFocused = true
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
+}
+
+func (c *Content) BlurResults() {
+	c.resultsFocused = false
+}
+
+func (c *Content) ResultsScrollUp() {
+	if c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].ScrollUp()
+	}
+}
+
+func (c *Content) ResultsScrollDown() {
+	if c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].ScrollDown()
+	}
+}
+
+func (c *Content) ResultsScrollLeft() {
+	if c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].ScrollLeft()
+	}
+}
+
+func (c *Content) ResultsScrollRight() {
+	if c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].ScrollRight()
 	}
 }
 
@@ -124,9 +163,29 @@ func (c *Content) ClearActive() {
 	}
 }
 
-func (c *Content) SetResult(text string) {
+func (c *Content) SetActiveText(text string) {
+	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
+		c.textareas[c.Tabs.Active].SetValue(text)
+	}
+}
+
+func (c Content) HasResults() bool {
+	if c.Tabs.Active < len(c.results) {
+		return c.results[c.Tabs.Active].HasData()
+	}
+	return false
+}
+
+func (c Content) ActiveText() string {
+	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
+		return c.textareas[c.Tabs.Active].Value()
+	}
+	return ""
+}
+
+func (c *Content) SetResult(data ResultData) {
 	if len(c.results) > 0 && c.Tabs.Active < len(c.results) {
-		c.results[c.Tabs.Active].SetContent(text)
+		c.results[c.Tabs.Active].SetData(data)
 	}
 }
 
@@ -194,7 +253,7 @@ func (c Content) View(width, height int) string {
 
 	var resultsView string
 	if len(c.results) > 0 && c.Tabs.Active < len(c.results) {
-		resultsView = c.results[c.Tabs.Active].View(width, bottomHeight)
+		resultsView = c.results[c.Tabs.Active].View(width, bottomHeight, c.resultsFocused)
 	} else {
 		resultsView = lipgloss.NewStyle().
 			Background(c.theme.Bg).
