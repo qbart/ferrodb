@@ -78,6 +78,18 @@ func (e ExplainView) buildLines(width int) []explainLine {
 		text:  fmt.Sprintf("  Execution Time:  %.3f ms", e.result.ExecutionTime),
 		color: lipgloss.Color("243"),
 	})
+	if e.result.TotalSortMemoryKB > 0 {
+		lines = append(lines, explainLine{
+			text:  fmt.Sprintf("  Sort Memory:     %d kB", e.result.TotalSortMemoryKB),
+			color: lipgloss.Color("243"),
+		})
+	}
+	if e.result.TotalHashMemoryKB > 0 {
+		lines = append(lines, explainLine{
+			text:  fmt.Sprintf("  Hash Memory:     %d kB", e.result.TotalHashMemoryKB),
+			color: lipgloss.Color("243"),
+		})
+	}
 	return lines
 }
 

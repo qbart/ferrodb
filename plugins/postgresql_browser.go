@@ -205,6 +205,25 @@ type pgExplainPlan struct {
 	SharedReadBlocks    int64           `json:"Shared Read Blocks,omitempty"`
 	SharedDirtiedBlocks int64           `json:"Shared Dirtied Blocks,omitempty"`
 	SharedWrittenBlocks int64           `json:"Shared Written Blocks,omitempty"`
+	// Conditions
+	IndexCond   string `json:"Index Cond,omitempty"`
+	RecheckCond string `json:"Recheck Cond,omitempty"`
+	HashCond    string `json:"Hash Cond,omitempty"`
+	MergeCond   string `json:"Merge Cond,omitempty"`
+	JoinFilter  string `json:"Join Filter,omitempty"`
+	// Filter
+	Filter              string `json:"Filter,omitempty"`
+	RowsRemovedByFilter int64  `json:"Rows Removed by Filter,omitempty"`
+	// Sort
+	SortMethod    string `json:"Sort Method,omitempty"`
+	SortSpaceUsed int64  `json:"Sort Space Used,omitempty"`
+	SortSpaceType string `json:"Sort Space Type,omitempty"`
+	// Hash
+	HashBuckets         int64 `json:"Hash Buckets,omitempty"`
+	OriginalHashBuckets int64 `json:"Original Hash Buckets,omitempty"`
+	HashBatches         int64 `json:"Hash Batches,omitempty"`
+	OriginalHashBatches int64 `json:"Original Hash Batches,omitempty"`
+	PeakMemoryUsage     int64 `json:"Peak Memory Usage,omitempty"`
 	Plans               []pgExplainPlan `json:"Plans,omitempty"`
 }
 
@@ -232,14 +251,36 @@ func (b *PostgreSQLBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin
 		return plugin.BrowserExplainResult{}, fmt.Errorf("Query result does not match the explain output")
 	}
 	r := raw[0]
+	rootTime := r.Plan.ActualTotalTime * float64(r.Plan.ActualLoops)
+	if rootTime <= 0 {
+		rootTime = r.ExecutionTime
+	}
+	sortKB, hashKB := pgSumMemory(r.Plan)
 	return plugin.BrowserExplainResult{
-		Root:          pgPlanToNode(r.Plan),
-		PlanningTime:  r.PlanningTime,
-		ExecutionTime: r.ExecutionTime,
+		Root:              pgPlanToNode(r.Plan, rootTime),
+		PlanningTime:      r.PlanningTime,
+		ExecutionTime:     r.ExecutionTime,
+		TotalSortMemoryKB: sortKB,
+		TotalHashMemoryKB: hashKB,
 	}, nil
 }
 
-func pgPlanToNode(plan pgExplainPlan) plugin.BrowserExplainNode {
+func pgSumMemory(plan pgExplainPlan) (sortKB, hashKB int64) {
+	if plan.SortMethod != "" {
+		sortKB += plan.SortSpaceUsed
+	}
+	if plan.HashBuckets > 0 {
+		hashKB += plan.PeakMemoryUsage
+	}
+	for _, child := range plan.Plans {
+		s, h := pgSumMemory(child)
+		sortKB += s
+		hashKB += h
+	}
+	return
+}
+
+func pgPlanToNode(plan pgExplainPlan, totalExecTime float64) plugin.BrowserExplainNode {
 	name := plan.NodeType
 	if plan.RelationName != "" {
 		name += " on " + plan.RelationName
@@ -250,25 +291,98 @@ func pgPlanToNode(plan pgExplainPlan) plugin.BrowserExplainNode {
 
 	node := plugin.BrowserExplainNode{Name: name}
 
+	// Cost / estimate
 	node.Lines = append(node.Lines, plugin.BrowserExplainLine{
 		Text: fmt.Sprintf("cost %.2f..%.2f  rows %d  width %d",
 			plan.StartupCost, plan.TotalCost, plan.PlanRows, plan.PlanWidth),
 	})
 
-	if plan.ActualTotalTime > 0 || plan.ActualRows > 0 {
-		highlight := plan.TotalCost > 1000
-		text := fmt.Sprintf("actual %.3f..%.3fms  rows %d  ×%d",
-			plan.ActualStartupTime, plan.ActualTotalTime, plan.ActualRows, plan.ActualLoops)
-		if plan.PlanRows > 0 {
-			r := float64(plan.ActualRows) / float64(plan.PlanRows)
-			if r > 10 || r < 0.1 {
-				text += fmt.Sprintf("  ⚠ %.1fx", r)
-				highlight = true
-			}
+	hasActual := plan.ActualTotalTime > 0 || plan.ActualLoops > 0
+
+	// Join / index conditions
+	for _, cond := range []struct{ label, val string }{
+		{"cond", plan.IndexCond},
+		{"recheck", plan.RecheckCond},
+		{"cond", plan.HashCond},
+		{"cond", plan.MergeCond},
+		{"join filter", plan.JoinFilter},
+	} {
+		if cond.val != "" {
+			node.Lines = append(node.Lines, plugin.BrowserExplainLine{Text: cond.label + ": " + cond.val})
 		}
-		node.Lines = append(node.Lines, plugin.BrowserExplainLine{Text: text, Highlight: highlight})
 	}
 
+	// Filter
+	if plan.Filter != "" {
+		text := "filter: " + plan.Filter
+		if plan.RowsRemovedByFilter > 0 {
+			text += fmt.Sprintf("  removed %d", plan.RowsRemovedByFilter)
+		}
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{Text: text})
+	}
+
+	// Selectivity (only when filter actually removed rows)
+	if hasActual && plan.RowsRemovedByFilter > 0 {
+		scanned := plan.ActualRows + plan.RowsRemovedByFilter
+		pct := float64(plan.ActualRows) / float64(scanned) * 100
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+			Text:      fmt.Sprintf("selectivity %d / %d  (%.1f%%)", plan.ActualRows, scanned, pct),
+			Highlight: pct < 10,
+		})
+	}
+
+	// Actual timing
+	if hasActual {
+		highlight := plan.TotalCost > 1000
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+			Text: fmt.Sprintf("actual %.3f..%.3fms  rows %d  ×%d",
+				plan.ActualStartupTime, plan.ActualTotalTime, plan.ActualRows, plan.ActualLoops),
+			Highlight: highlight,
+		})
+	}
+
+	// Exclusive time (only when actual timing is available)
+	if hasActual {
+		nodeTotal := plan.ActualTotalTime * float64(plan.ActualLoops)
+		childrenTotal := 0.0
+		for _, child := range plan.Plans {
+			childrenTotal += child.ActualTotalTime * float64(child.ActualLoops)
+		}
+		exclusiveMs := nodeTotal - childrenTotal
+		if exclusiveMs < 0 {
+			exclusiveMs = 0
+		}
+		pct := 0.0
+		if totalExecTime > 0 {
+			pct = exclusiveMs / totalExecTime * 100
+		}
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+			Text:      fmt.Sprintf("exclusive %.3fms  %.1f%%", exclusiveMs, pct),
+			Highlight: pct > 10,
+		})
+	}
+
+	// Rows processed + estimation error (merged)
+	if hasActual {
+		processedRows := plan.ActualRows * plan.ActualLoops
+		estError := plan.ActualRows - plan.PlanRows
+		var ratioStr string
+		highlight := false
+		if plan.PlanRows > 0 {
+			ratio := float64(plan.ActualRows) / float64(plan.PlanRows)
+			ratioStr = fmt.Sprintf("%.2fx", ratio)
+			highlight = ratio > 10 || ratio < 0.1
+		} else {
+			ratioStr = "∞"
+			highlight = plan.ActualRows > 0
+		}
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+			Text:      fmt.Sprintf("processed %d  est error %+d  ratio %s", processedRows, estError, ratioStr),
+			Highlight: highlight,
+		})
+	}
+
+	// Buffers
 	if plan.SharedHitBlocks+plan.SharedReadBlocks > 0 {
 		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
 			Text: fmt.Sprintf("buffers hit=%d  read=%d  dirtied=%d  written=%d",
@@ -276,8 +390,31 @@ func pgPlanToNode(plan pgExplainPlan) plugin.BrowserExplainNode {
 		})
 	}
 
+	// Sort method + memory
+	if plan.SortMethod != "" {
+		spaceType := plan.SortSpaceType
+		if spaceType == "" {
+			spaceType = "memory"
+		}
+		isDisk := strings.EqualFold(spaceType, "Disk")
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{
+			Text:      fmt.Sprintf("sort: %s  %s %dkB", plan.SortMethod, strings.ToLower(spaceType), plan.SortSpaceUsed),
+			Highlight: isDisk,
+		})
+	}
+
+	// Hash buckets / batches / memory
+	if plan.HashBuckets > 0 {
+		spilled := plan.HashBatches > 1
+		text := fmt.Sprintf("hash buckets %d  batches %d  memory %dkB", plan.HashBuckets, plan.HashBatches, plan.PeakMemoryUsage)
+		if plan.OriginalHashBuckets != plan.HashBuckets || plan.OriginalHashBatches != plan.HashBatches {
+			text += fmt.Sprintf("  (orig buckets %d  batches %d)", plan.OriginalHashBuckets, plan.OriginalHashBatches)
+		}
+		node.Lines = append(node.Lines, plugin.BrowserExplainLine{Text: text, Highlight: spilled})
+	}
+
 	for _, child := range plan.Plans {
-		node.Children = append(node.Children, pgPlanToNode(child))
+		node.Children = append(node.Children, pgPlanToNode(child, totalExecTime))
 	}
 	return node
 }

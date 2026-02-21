@@ -43,7 +43,9 @@ type BrowserExplainNode struct {
 }
 
 type BrowserExplainResult struct {
-	Root          BrowserExplainNode
-	PlanningTime  float64
-	ExecutionTime float64
+	Root              BrowserExplainNode
+	PlanningTime      float64
+	ExecutionTime     float64
+	TotalSortMemoryKB int64
+	TotalHashMemoryKB int64
 }
