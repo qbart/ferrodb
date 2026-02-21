@@ -67,18 +67,20 @@ func pgValueToString(v any, oid uint32) string {
 			s := hex.EncodeToString(b[:])
 			return s[0:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:32]
 		}
-	case 114, 3802: // json, jsonb — pgx returns []byte
+	case 114, 3802: // json, jsonb — pgx may return []byte or already-decoded Go value
+		val := v
 		if b, ok := v.([]byte); ok {
 			var parsed any
 			if err := json.Unmarshal(b, &parsed); err != nil {
 				return err.Error()
 			}
-			marshaled, err := json.Marshal(parsed)
-			if err != nil {
-				return err.Error()
-			}
-			return string(marshaled)
+			val = parsed
 		}
+		marshaled, err := json.Marshal(val)
+		if err != nil {
+			return err.Error()
+		}
+		return string(marshaled)
 	}
 	return fmt.Sprintf("%v", v)
 }
