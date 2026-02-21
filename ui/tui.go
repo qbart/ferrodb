@@ -394,9 +394,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				t.sidebar.Tree.Expand()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
 			case "enter":
-				if !t.sidebar.Tree.CursorExpandable() {
-					return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath(), true)
-				}
+				return t, showItemCmd(t.opts, t.sidebar.Tree.CursorIDPath(), true)
 			case "R":
 				return t, t.reloadCmd()
 			}
@@ -434,10 +432,13 @@ func (t TUI) View() string {
 	if t.focus == FocusTree {
 		if labels, ok := t.sidebar.Tree.CursorPath(); ok {
 			depth := len(labels) - 1
-			if depth == 1 {
-				footerLabel = labels[0] // fixed level: show parent schema name
-			} else {
-				footerLabel = labels[depth] // schema or table/view name
+			switch depth {
+			case 1:
+				footerLabel = labels[0] // "Tables"/"Views" level: show schema name
+			case 3:
+				footerLabel = labels[2] // sub-category level (Columns/Indexes/…): show table name
+			default:
+				footerLabel = labels[depth]
 			}
 		}
 	}

@@ -34,21 +34,71 @@ func (b *PostgreSQLBrowser) Disconnect(ctx context.Context) error {
 }
 
 func (b *PostgreSQLBrowser) Show(ctx context.Context, ids []string) (string, error) {
-	if len(ids) >= 3 {
-		objectType := ids[1]
-		switch objectType {
-		case "table", "view", "matview", "foreign_table":
-			return fmt.Sprintf("SELECT * FROM %s.%s LIMIT 100", ids[0], ids[2]), nil
-		case "enum":
-			return fmt.Sprintf(
-				"SELECT enumlabel AS value FROM pg_enum"+
-					" JOIN pg_type ON pg_enum.enumtypid = pg_type.oid"+
-					" JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid"+
-					" WHERE pg_namespace.nspname = '%s' AND pg_type.typname = '%s'"+
-					" ORDER BY enumsortorder",
-				ids[0], ids[2],
+	if len(ids) < 3 {
+		return "", nil
+	}
+	schema, objectType := ids[0], ids[1]
+
+	// table sub-item: [schema, "table", table_name, category, item_name]
+	if objectType == "table" && len(ids) == 5 {
+		category, itemName := ids[3], ids[4]
+		switch category {
+		case "index":
+			return fmt.Sprintf(`WITH idx AS (
+    SELECT
+        n.nspname                                   AS schema_name,
+        t.relname                                   AS table_name,
+        i.relname                                   AS index_name,
+        am.amname                                   AS index_type,
+        ix.indisunique                              AS is_unique,
+        ix.indisprimary                             AS is_primary,
+        pg_get_indexdef(i.oid)                      AS index_definition,
+        pg_get_expr(ix.indpred, ix.indrelid)        AS partial_predicate,
+        pg_relation_size(i.oid)                     AS index_size_bytes,
+        s.idx_scan,
+        s.idx_tup_read,
+        s.idx_tup_fetch
+    FROM pg_index ix
+    JOIN pg_class t       ON t.oid = ix.indrelid
+    JOIN pg_class i       ON i.oid = ix.indexrelid
+    JOIN pg_namespace n   ON n.oid = t.relnamespace
+    JOIN pg_am am         ON i.relam = am.oid
+    LEFT JOIN pg_stat_user_indexes s ON s.indexrelid = i.oid
+    WHERE n.nspname = '%s' AND i.relname = '%s'
+)
+SELECT
+    schema_name,
+    table_name,
+    index_name,
+    index_type,
+    is_unique,
+    is_primary,
+    pg_size_pretty(index_size_bytes) AS index_size,
+    idx_scan,
+    idx_tup_read,
+    idx_tup_fetch,
+    partial_predicate,
+    index_definition
+FROM idx`,
+				schema, itemName,
 			), nil
 		}
+		return "", nil
+	}
+
+	name := ids[2]
+	switch objectType {
+	case "table", "view", "matview", "foreign_table":
+		return fmt.Sprintf("SELECT * FROM %s.%s LIMIT 100", schema, name), nil
+	case "enum":
+		return fmt.Sprintf(
+			"SELECT enumlabel AS value FROM pg_enum"+
+				" JOIN pg_type ON pg_enum.enumtypid = pg_type.oid"+
+				" JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid"+
+				" WHERE pg_namespace.nspname = '%s' AND pg_type.typname = '%s'"+
+				" ORDER BY enumsortorder",
+			schema, name,
+		), nil
 	}
 	return "", nil
 }
