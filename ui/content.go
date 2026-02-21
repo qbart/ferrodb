@@ -195,6 +195,33 @@ func (c *Content) SetResult(data ResultData) {
 	}
 }
 
+func (c *Content) CloseTab() {
+	if len(c.Tabs.Items) <= 1 {
+		return
+	}
+	idx := c.Tabs.Active
+	c.Tabs.Items = append(c.Tabs.Items[:idx], c.Tabs.Items[idx+1:]...)
+	c.textareas = append(c.textareas[:idx], c.textareas[idx+1:]...)
+	c.results = append(c.results[:idx], c.results[idx+1:]...)
+
+	if c.Tabs.Active >= len(c.Tabs.Items) {
+		c.Tabs.Active = len(c.Tabs.Items) - 1
+	}
+
+	for i := range c.Tabs.Items {
+		c.Tabs.Items[i].Title = fmt.Sprintf("%d", i+1)
+	}
+
+	focused := c.Tabs.Focused
+	for i := range c.textareas {
+		c.textareas[i].Blur()
+	}
+	if focused {
+		c.textareas[c.Tabs.Active].Focus()
+	}
+	c.Tabs.Focused = focused
+}
+
 func (c *Content) NextTab() {
 	if len(c.Tabs.Items) == 0 {
 		return

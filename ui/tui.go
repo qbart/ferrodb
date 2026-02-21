@@ -296,7 +296,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return t, tea.Quit
-		case "ctrl+w":
+		case "tab":
 			switch t.focus {
 			case FocusTree:
 				t.focus = FocusEditor
@@ -323,9 +323,41 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					t.content.Focus()
 				}
 			}
+		case "shift+tab":
+			switch t.focus {
+			case FocusTree:
+				if t.content.HasResults() {
+					t.focus = FocusResults
+					t.sidebar.Tree.Focused = false
+					t.content.FocusResults()
+				} else {
+					t.focus = FocusEditor
+					t.sidebar.Tree.Focused = false
+					t.content.Focus()
+				}
+			case FocusEditor:
+				if t.sidebarOpen {
+					t.focus = FocusTree
+					t.content.Blur()
+					t.sidebar.Tree.Focused = true
+				} else if t.content.HasResults() {
+					t.focus = FocusResults
+					t.content.Blur()
+					t.content.FocusResults()
+				}
+			case FocusResults:
+				t.focus = FocusEditor
+				t.content.BlurResults()
+				t.content.Focus()
+			}
 			return t, nil
 		case "f1":
 			t.help.Visible = !t.help.Visible
+			return t, nil
+		case "ctrl+w":
+			if t.focus == FocusEditor {
+				t.content.CloseTab()
+			}
 			return t, nil
 		case "ctrl+t":
 			t.content.AddTab()
