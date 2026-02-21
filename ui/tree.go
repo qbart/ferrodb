@@ -278,9 +278,9 @@ func (t Tree) renderItems(items []TreeItem, depth int, lines *[]string, idx *int
 			prefix = treeSpinnerFrames[t.spinnerFrame%len(treeSpinnerFrames)] + " "
 		} else if item.Expandable {
 			if item.Expanded {
-				prefix = "▾ "
+				prefix = "⌄ "
 			} else {
-				prefix = "▸ "
+				prefix = "› "
 			}
 		}
 

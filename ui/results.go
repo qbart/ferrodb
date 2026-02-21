@@ -8,6 +8,7 @@ import (
 )
 
 const maxColWidth = 50
+const maxColWidthSingle = 200
 
 type ResultData struct {
 	Headers     []string
@@ -16,12 +17,13 @@ type ResultData struct {
 }
 
 type Results struct {
-	data      ResultData
-	cursor    int
-	rowOffset int
-	colOffset int
-	widths    []int
-	theme     Theme
+	data       ResultData
+	cursor     int
+	rowOffset  int
+	colOffset  int // column-skip index (multi-column)
+	charOffset int // character scroll offset (single-column)
+	widths     []int
+	theme      Theme
 }
 
 func NewResults(theme Theme) Results {
@@ -33,7 +35,12 @@ func (r *Results) SetData(data ResultData) {
 	r.cursor = 0
 	r.rowOffset = 0
 	r.colOffset = 0
-	r.widths = computeWidths(data)
+	r.charOffset = 0
+	maxWidth := maxColWidth
+	if len(data.Headers) == 1 {
+		maxWidth = maxColWidthSingle
+	}
+	r.widths = computeWidths(data, maxWidth)
 }
 
 func (r *Results) MoveUp() {
@@ -61,12 +68,24 @@ func (r *Results) EnsureVisible(height int) {
 }
 
 func (r *Results) ScrollLeft() {
+	if len(r.data.Headers) == 1 {
+		if r.charOffset > 0 {
+			r.charOffset--
+		}
+		return
+	}
 	if r.colOffset > 0 {
 		r.colOffset--
 	}
 }
 
 func (r *Results) ScrollRight() {
+	if len(r.data.Headers) == 1 {
+		if len(r.widths) > 0 && r.charOffset < r.widths[0]-1 {
+			r.charOffset++
+		}
+		return
+	}
 	if r.colOffset < len(r.data.Headers)-1 {
 		r.colOffset++
 	}
@@ -85,13 +104,13 @@ func (r Results) CurrentRow() (headers []string, values []string, ok bool) {
 
 func (r *Results) Resize(width, height int) {}
 
-func normalizeCell(s string) string {
+func normalizeCell(s string, maxWidth int) string {
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		s = s[:i]
 	}
 	runes := []rune(s)
-	if len(runes) > maxColWidth {
-		return string(runes[:maxColWidth-1]) + "…"
+	if len(runes) > maxWidth {
+		return string(runes[:maxWidth-1]) + "…"
 	}
 	return s
 }
@@ -100,15 +119,15 @@ func runeLen(s string) int {
 	return len([]rune(s))
 }
 
-func computeWidths(data ResultData) []int {
+func computeWidths(data ResultData, maxWidth int) []int {
 	widths := make([]int, len(data.Headers))
 	for i, h := range data.Headers {
-		widths[i] = runeLen(normalizeCell(h))
+		widths[i] = runeLen(normalizeCell(h, maxWidth))
 	}
 	for _, row := range data.Rows {
 		for i := range widths {
 			if i < len(row) {
-				w := runeLen(normalizeCell(row[i]))
+				w := runeLen(normalizeCell(row[i], maxWidth))
 				if w > widths[i] {
 					widths[i] = w
 				}
@@ -202,7 +221,20 @@ func (r Results) renderRow(cells []string, style lipgloss.Style, availWidth int)
 
 		var cellText string
 		if i < len(cells) {
-			cellText = normalizeCell(cells[i])
+			mw := maxColWidth
+			if len(r.widths) == 1 {
+				mw = maxColWidthSingle
+			}
+			cellText = normalizeCell(cells[i], mw)
+		}
+		// single-column: apply character-level horizontal scroll
+		if len(r.widths) == 1 && r.charOffset > 0 {
+			runes := []rune(cellText)
+			if r.charOffset < len(runes) {
+				cellText = string(runes[r.charOffset:])
+			} else {
+				cellText = ""
+			}
 		}
 		if runes := []rune(cellText); len(runes) > r.widths[i] {
 			cellText = string(runes[:r.widths[i]])

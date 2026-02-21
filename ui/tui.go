@@ -59,6 +59,9 @@ func New(opts Options) TUI {
 
 	sidebar := NewSidebar(theme)
 	sidebar.Tree.Items = []TreeItem{}
+	if opts.Version != "" {
+		sidebar.Title = "ferroDB " + opts.Version
+	}
 
 	content := NewContent(theme)
 	content.SetTabs([]TabItem{
@@ -531,6 +534,7 @@ type Options struct {
 	RawDriver string
 	RawDSN    string
 	Registry  *plugins.Registry
+	Version   string
 }
 
 func Run(ctx context.Context, opts Options) error {

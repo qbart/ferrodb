@@ -331,7 +331,7 @@ func (a *App) Run(args []string) int {
 			&cli.StringFlag{Name: "raw", Usage: "Raw connection string in 'drivername:dsn' format", Required: false},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			opts := ui.Options{Registry: registry}
+			opts := ui.Options{Registry: registry, Version: cmd.Root().Version}
 			if raw := cmd.String("raw"); raw != "" {
 				i := strings.IndexByte(raw, ':')
 				if i < 0 {

@@ -6,19 +6,19 @@ type NavItem int
 
 const (
 	NavDatabase NavItem = iota
-	NavFavourites
+	NavExplain
 )
 
 var navIcons = map[NavItem]string{
-	NavDatabase:   "\u26C1",
-	NavFavourites: "\u2605",
+	NavDatabase: "\u25A0", // ■ filled square
+	NavExplain:  "\u25CF", // ● filled circle
 }
 
-var navItems = []NavItem{NavDatabase, NavFavourites}
+var navItems = []NavItem{NavDatabase, NavExplain}
 
 var navTitles = map[NavItem]string{
-	NavDatabase:   "Database",
-	NavFavourites: "Favourites",
+	NavDatabase: "Data",
+	NavExplain:  "Explain",
 }
 
 const navWidth = 3

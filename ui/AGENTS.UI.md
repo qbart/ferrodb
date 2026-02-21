@@ -43,7 +43,9 @@ The `ui/` package implements a fullscreen terminal UI (TUI) for ferroDB using [B
 | `tabs.go` | `Tabs` | Tab bar header — active tab color reflects content focus state |
 | `content.go` | `Content` | Manages tabs, textareas (one per tab), and results panels. All tab switch helpers preserve focus state |
 | `results.go` | `Results` | Viewport-based results panel for query output |
+| `highlight.go` | — | SQL keyword highlighting — post-processes textarea ANSI output |
 | `help.go` | `Help` | Centered overlay showing keyboard shortcuts, toggled with F1 |
+| `row_detail.go` | `RowDetail` | Fullscreen overlay showing all column values for selected result row |
 | `footer.go` | `Footer` | Bottom status bar — context label left, spinner + ms right during queries |
 
 ## Theme
@@ -86,12 +88,12 @@ The `ui/` package implements a fullscreen terminal UI (TUI) for ferroDB using [B
 
 ### Navbar
 
-Icons are single unicode characters, centered in 3-char width cells with 1-line top padding per item. Supports `Next()`/`Prev()` cycling and `ActiveTitle()`.
+Single unicode icon, centered in 3-char wide cell with 1-line top padding per item. Supports `Next()`/`Prev()` cycling and `ActiveTitle()`.
 
 | NavItem | Icon | Title |
 |---------|------|-------|
-| `NavDatabase` | `⛁` (U+26C1) | Database |
-| `NavFavourites` | `★` (U+2605) | Favourites |
+| `NavDatabase` | `■` U+25A0 filled square | Data |
+| `NavExplain` | `●` U+25CF filled circle | Explain |
 
 ### Tree
 
@@ -102,13 +104,13 @@ Lazy-loading recursive tree. Each `TreeItem` tracks:
 | `ID` | string | Stable identifier used for browser path |
 | `Label` | string | Display text (truncated with `…` if too wide) |
 | `Children` | `[]TreeItem` | Loaded child items |
-| `Expandable` | bool | Whether this item can have children (drives `▶`/`▼` icons) |
+| `Expandable` | bool | Whether this item can have children (drives `›`/`⌄` icons) |
 | `Expanded` | bool | Whether children are currently shown |
 | `Loaded` | bool | Whether children have been fetched from DB |
 | `loading` | bool (unexported) | Spinner is active while async load is in flight |
 
 **Loading flow:**
-1. User presses `D` on an unloaded expandable item
+1. User presses `→` on an unloaded expandable item
 2. `StartLoading()` sets `loading = true`, returns the full `[]string` ID path (root → cursor)
 3. `loadItemCmd` dispatches async `browser.List(ctx, ids)` + starts tick for spinner
 4. On `itemLoadedMsg`: `SetLoaded(ids, children)` walks the ID path, sets `loading = false`, `Loaded = true`, `Expanded = true`, and stores children
@@ -162,7 +164,7 @@ Each tab has its own `textarea.Model` (bubbles) and `Results` viewport. The text
 
 ### Help
 
-Centered overlay rendered with `lipgloss.Place`. Toggled with `F1`. Rendered over the full screen using `Bg` as whitespace background. Not included in the normal layout — `TUI.View` short-circuits to return only the help view when visible.
+Centered overlay rendered with `lipgloss.Place`. Toggled with `F1` (or closed with `Esc`/`Ctrl+C`). Rendered over the full screen using `Bg` as whitespace background. Intercepts all keys — `TUI.Update` checks `help.Visible` before the main key switch and returns early. `TUI.View` short-circuits to return only the help view when visible.
 
 ## Browser Plugin Interface
 
@@ -253,8 +255,22 @@ type BrowserItem struct {
 |-----|--------|
 | `↑` | Move row cursor up |
 | `↓` | Move row cursor down |
-| `←` | Scroll columns left |
-| `→` | Scroll columns right |
+| `←` | Scroll columns left (or chars left in single-column mode) |
+| `→` | Scroll columns right (or chars right in single-column mode) |
+| `Enter` | Open fullscreen row detail overlay |
+
+### Row Detail overlay
+
+| Key | Action |
+|-----|--------|
+| `↑` | Scroll up one line |
+| `↓` | Scroll down one line |
+| `j` | Jump to next column header |
+| `k` | Jump to previous column header |
+| `←` | Scroll content left (character offset) |
+| `→` | Scroll content right (character offset) |
+| `y` | Copy selected column value to clipboard |
+| `Enter` / `Esc` / `Ctrl+C` | Close overlay |
 
 ## Options / CLI
 
@@ -288,10 +304,22 @@ Keywords covered: `SELECT FROM WHERE JOIN LEFT RIGHT INNER OUTER FULL CROSS ON A
 - **Header row**: always visible, 1 line — `SidebarHeaderBg`/`Fg` when focused, `SidebarBg`/`Muted` when not
 - **Row cursor**: teal (`NavActiveBg`/`NavActiveFg`) when focused, light gray (`AccentInactive`/`FooterFg`) when not
 - **Vertical scroll**: `cursor int` + `rowOffset int`; `EnsureVisible(height)` called from `Update` after movement
-- **Horizontal scroll**: `colOffset int` shifts which column is leftmost
-- **Column widths**: computed once on `SetData` via `computeWidths`; capped at `maxColWidth = 50`
-- **Cell normalization**: `normalizeCell` strips everything after the first `\n` and truncates to 50 runes with `…`
+- **Horizontal scroll**: `colOffset int` shifts which column is leftmost (multi-column); `charOffset int` scrolls character-by-character within the cell (single-column)
+- **Column widths**: computed once on `SetData` via `computeWidths`; capped at `maxColWidth = 50` (multi-column) or `maxColWidthSingle = 200` (single-column)
+- **Cell normalization**: `normalizeCell(s, maxWidth)` strips everything after the first `\n` and truncates with `…`
 - **Empty state**: styled blank block when no headers
+
+### Row Detail overlay (`row_detail.go`)
+
+Fullscreen overlay triggered by `Enter` on a focused result row. Shows all column→value pairs as full-width lines:
+- **Column header line**: `SidebarBg` + `Accent`, bold; selected column uses `NavActiveBg`/`NavActiveFg`
+- **Value lines**: `Bg` + `Fg`, full width
+- **Hint bar**: last line, `FooterBg` + black text
+- **`colCursor int`**: tracks selected column; updates automatically during line scroll (`syncColCursor`)
+- **`rowOffset int`**: line-based vertical scroll; auto-set to selected column's header line on `JumpNext`/`JumpPrev`
+- **`colOffset int`**: character-level horizontal scroll (rune offset applied via `cropRunes`)
+- **Clipboard**: `y` calls `clipboard.Init()` then `clipboard.Write(FmtText, value)` using `golang.design/x/clipboard`
+- **Overlay intercepts all keys** before the main switch — `Ctrl+C` closes it instead of quitting
 
 ### Column Types
 
