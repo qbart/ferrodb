@@ -322,10 +322,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+t":
 			t.content.AddTab()
 			return t, nil
-		case "tab":
+		case "ctrl+right":
 			t.content.NextTab()
 			return t, nil
-		case "shift+tab":
+		case "ctrl+left":
 			t.content.PrevTab()
 			return t, nil
 		case "ctrl+\\":
