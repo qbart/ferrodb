@@ -200,22 +200,31 @@ type BrowserItem struct {
 |-----|--------|
 | `Ctrl+C` | Quit |
 | `F1` | Toggle help overlay |
-| `Ctrl+\` | Toggle sidebar |
+| `Ctrl+W` | Cycle focus: tree → editor → results → tree (skips results if empty, skips tree if hidden) |
+| `Ctrl+\` | Toggle sidebar (auto-moves focus to editor if tree was focused) |
 | `Ctrl+T` | New tab |
-| `Ctrl+R` | Run query |
-| `Ctrl+W` | Toggle focus: editor ↔ tree |
-| `Tab` | Next tab |
-| `Shift+Tab` | Previous tab |
+| `Ctrl+R` | Run query (uses active tab's textarea content) |
+| `Ctrl+Left` | Previous tab |
+| `Ctrl+Right` | Next tab |
 
 ### Tree (when tree focused)
 
 | Key | Action |
 |-----|--------|
-| `W` | Move cursor up |
-| `S` | Move cursor down |
-| `A` | Collapse parent (or self at root) |
-| `D` | Expand/load item; if leaf, call `Show` |
-| `R` (Shift+R) | Reload root list from DB |
+| `↑` | Move cursor up |
+| `↓` | Move cursor down |
+| `←` | Collapse parent (or self at root level) |
+| `→` | Expand/load item; if leaf, call `Show` (opens new tab with query) |
+| `Shift+R` | Reload root list from DB |
+
+### Results (when results focused)
+
+| Key | Action |
+|-----|--------|
+| `↑` | Move row cursor up |
+| `↓` | Move row cursor down |
+| `←` | Scroll columns left |
+| `→` | Scroll columns right |
 
 ## Options / CLI
 
@@ -228,6 +237,35 @@ type Options struct {
 ```
 
 Launched via `ferro ui --raw drivername:dsn`. The `--raw` value is split on the **first** `:` only. Error if no `:` present.
+
+## SQL Keyword Highlighting
+
+`highlight.go` post-processes the textarea's rendered output to colorize SQL keywords with `theme.Accent`. It works by tokenizing the raw ANSI-escaped string:
+
+1. Match tokens with `\x1b\[[0-9;]*m|[a-zA-Z_][a-zA-Z0-9_]*`
+2. ANSI CSI sequences pass through unchanged
+3. Words matching the SQL keyword set (case-insensitive) are wrapped with `\x1b[38;5;{Accent}m` … `\x1b[38;5;{Fg}m`
+4. Only foreground is changed — backgrounds (cursor line, sidebar) remain correct
+
+Keywords covered: `SELECT FROM WHERE JOIN LEFT RIGHT INNER OUTER FULL CROSS ON AND OR NOT IN IS NULL AS ORDER BY GROUP HAVING LIMIT OFFSET INSERT INTO VALUES UPDATE SET DELETE CREATE TABLE DROP ALTER ADD COLUMN PRIMARY KEY FOREIGN REFERENCES DISTINCT UNION ALL WITH CASE WHEN THEN ELSE END EXISTS BETWEEN LIKE ILIKE ASC DESC RETURNING INDEX UNIQUE CONSTRAINT DEFAULT TRUE FALSE CAST COALESCE NULLIF OVER PARTITION ROW ROWS RANGE UNBOUNDED PRECEDING FOLLOWING CURRENT`
+
+**Note**: `fgAnsiCode(color lipgloss.Color)` only works with numeric ANSI 256-color strings (which the default theme uses). If hex colors are ever added to the theme, this function must be updated.
+
+## Results Table
+
+`results.go` renders a scrollable table from `ResultData{Headers, Rows, ColumnTypes}`.
+
+- **Header row**: always visible, 1 line — `SidebarHeaderBg`/`Fg` when focused, `SidebarBg`/`Muted` when not
+- **Row cursor**: teal (`NavActiveBg`/`NavActiveFg`) when focused, light gray (`AccentInactive`/`FooterFg`) when not
+- **Vertical scroll**: `cursor int` + `rowOffset int`; `EnsureVisible(height)` called from `Update` after movement
+- **Horizontal scroll**: `colOffset int` shifts which column is leftmost
+- **Column widths**: computed once on `SetData` via `computeWidths`; capped at `maxColWidth = 50`
+- **Cell normalization**: `normalizeCell` strips everything after the first `\n` and truncates to 50 runes with `…`
+- **Empty state**: styled blank block when no headers
+
+### Column Types
+
+`ResultData.ColumnTypes []string` carries one of: `string`, `float64`, `int64`, `uint64`, `object`. Set by the browser plugin per column. The UI layer stores it for downstream use (e.g., per-type cell formatting).
 
 ## Adding a Component
 
