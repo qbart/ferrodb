@@ -400,10 +400,10 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+t":
 			t.content.AddTab()
 			return t, nil
-		case "ctrl+right":
+		case "ctrl+right", "ctrl+l":
 			t.content.NextTab()
 			return t, nil
-		case "ctrl+left":
+		case "ctrl+left", "ctrl+h":
 			t.content.PrevTab()
 			return t, nil
 		case "ctrl+\\":
@@ -432,15 +432,15 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if t.focus == FocusResults {
 			switch msg.String() {
-			case "up":
+			case "up", "k":
 				t.content.ResultsMoveUp()
 				t.content.ResultsEnsureVisible(t.resultsDataHeight())
-			case "down":
+			case "down", "j":
 				t.content.ResultsMoveDown()
 				t.content.ResultsEnsureVisible(t.resultsDataHeight())
-			case "left":
+			case "left", "h":
 				t.content.ResultsScrollLeft()
-			case "right":
+			case "right", "l":
 				t.content.ResultsScrollRight()
 			case "enter":
 				if headers, values, ok := t.content.CurrentRow(); ok {
@@ -452,16 +452,16 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if t.focus == FocusTree {
 			switch msg.String() {
-			case "up":
+			case "up", "k":
 				t.sidebar.Tree.MoveUp()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
-			case "down":
+			case "down", "j":
 				t.sidebar.Tree.MoveDown()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
-			case "left":
+			case "left", "h":
 				t.sidebar.Tree.Collapse()
 				t.sidebar.Tree.EnsureVisible(t.sidebarTreeHeight())
-			case "right":
+			case "right", "l":
 				if ids, ok := t.sidebar.Tree.StartLoading(); ok {
 					return t, tea.Batch(loadItemCmd(t.opts, ids), tickCmd())
 				}
