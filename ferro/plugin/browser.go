@@ -42,7 +42,19 @@ type BrowserExplainNode struct {
 	Children []BrowserExplainNode
 }
 
+type BrowserExplainRow struct {
+	Cells     []string
+	Highlight bool
+}
+
+type BrowserExplainTable struct {
+	Title   string
+	Headers []string
+	Rows    []BrowserExplainRow
+}
+
 type BrowserExplainResult struct {
 	Root         BrowserExplainNode
 	SummaryLines []BrowserExplainLine
+	Tables       []BrowserExplainTable
 }

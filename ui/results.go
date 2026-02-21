@@ -169,15 +169,18 @@ func (r Results) View(width, height int, focused bool) string {
 
 	cellStyle := lipgloss.NewStyle().
 		Background(r.theme.Bg).
-		Foreground(r.theme.Fg)
+		Foreground(r.theme.Fg).
+        Bold(false)
 
 	cursorStyle := lipgloss.NewStyle().
 		Background(r.theme.NavActiveBg).
-		Foreground(r.theme.NavActiveFg)
+		Foreground(r.theme.NavActiveFg).
+        Bold(false)
 
 	cursorBlurStyle := lipgloss.NewStyle().
 		Background(r.theme.AccentInactive).
-		Foreground(r.theme.FooterFg)
+		Foreground(r.theme.FooterFg).
+        Bold(false)
 
 	var lines []string
 

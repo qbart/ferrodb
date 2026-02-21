@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -267,9 +268,35 @@ func (b *PostgreSQLBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin
 		summary = append(summary, plugin.BrowserExplainLine{Text: fmt.Sprintf("Hash Memory:     %d kB", hashKB)})
 	}
 
+	// Per-node-type stats table
+	nodeStats := make(map[string]*pgNodeTypeStat)
+	pgCollectNodeStats(r.Plan, nodeStats)
+	statSlice := make([]*pgNodeTypeStat, 0, len(nodeStats))
+	for _, s := range nodeStats {
+		statSlice = append(statSlice, s)
+	}
+	sort.Slice(statSlice, func(i, j int) bool {
+		return statSlice[i].totalMs > statSlice[j].totalMs
+	})
+	table := plugin.BrowserExplainTable{
+		Title:   "Per node type stats",
+		Headers: []string{"node", "count", "total time", "% of query"},
+	}
+	for _, s := range statSlice {
+		pct := 0.0
+		if rootTime > 0 {
+			pct = s.totalMs / rootTime * 100
+		}
+		table.Rows = append(table.Rows, plugin.BrowserExplainRow{
+			Cells:     []string{s.nodeType, fmt.Sprintf("%d", s.count), fmt.Sprintf("%.3f ms", s.totalMs), fmt.Sprintf("%.1f%%", pct)},
+			Highlight: pct > 50,
+		})
+	}
+
 	return plugin.BrowserExplainResult{
 		Root:         pgPlanToNode(r.Plan, rootTime),
 		SummaryLines: summary,
+		Tables:       []plugin.BrowserExplainTable{table},
 	}, nil
 }
 
@@ -286,6 +313,32 @@ func pgSumMemory(plan pgExplainPlan) (sortKB, hashKB int64) {
 		hashKB += h
 	}
 	return
+}
+
+type pgNodeTypeStat struct {
+	nodeType string
+	count    int
+	totalMs  float64
+}
+
+func pgCollectNodeStats(plan pgExplainPlan, stats map[string]*pgNodeTypeStat) {
+	nodeTotal := plan.ActualTotalTime * float64(plan.ActualLoops)
+	childrenTotal := 0.0
+	for _, child := range plan.Plans {
+		childrenTotal += child.ActualTotalTime * float64(child.ActualLoops)
+	}
+	exclusiveMs := nodeTotal - childrenTotal
+	if exclusiveMs < 0 {
+		exclusiveMs = 0
+	}
+	if _, ok := stats[plan.NodeType]; !ok {
+		stats[plan.NodeType] = &pgNodeTypeStat{nodeType: plan.NodeType}
+	}
+	stats[plan.NodeType].count++
+	stats[plan.NodeType].totalMs += exclusiveMs
+	for _, child := range plan.Plans {
+		pgCollectNodeStats(child, stats)
+	}
 }
 
 func pgPlanToNode(plan pgExplainPlan, totalExecTime float64) plugin.BrowserExplainNode {

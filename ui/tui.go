@@ -560,7 +560,9 @@ func (t TUI) View() string {
 	}
 
 	footerLabel := ""
-	if t.focus == FocusTree {
+	if t.navbar.Active == NavExplain {
+		footerLabel = "↑ ↓  j k  scroll    ctrl+g  switch view"
+	} else if t.focus == FocusTree {
 		if labels, ok := t.sidebar.Tree.CursorPath(); ok {
 			depth := len(labels) - 1
 			switch depth {

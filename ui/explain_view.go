@@ -78,6 +78,63 @@ func (e ExplainView) buildLines(width int) []explainLine {
 			lines = append(lines, explainLine{text: "  " + sl.Text, color: color})
 		}
 	}
+	for _, tbl := range e.result.Tables {
+		lines = append(lines, buildExplainTableLines(tbl)...)
+	}
+	return lines
+}
+
+func buildExplainTableLines(tbl plugin.BrowserExplainTable) []explainLine {
+	// Compute column widths from headers and all rows
+	colWidths := make([]int, len(tbl.Headers))
+	for i, h := range tbl.Headers {
+		colWidths[i] = len([]rune(h))
+	}
+	for _, row := range tbl.Rows {
+		for i, cell := range row.Cells {
+			if i < len(colWidths) {
+				if w := len([]rune(cell)); w > colWidths[i] {
+					colWidths[i] = w
+				}
+			}
+		}
+	}
+
+	formatRow := func(cells []string) string {
+		var sb strings.Builder
+		sb.WriteString("  ")
+		for i, cell := range cells {
+			if i >= len(colWidths) {
+				break
+			}
+			runes := []rune(cell)
+			sb.WriteString(string(runes))
+			pad := colWidths[i] - len(runes) + 2
+			sb.WriteString(strings.Repeat(" ", pad))
+		}
+		return sb.String()
+	}
+
+	sepLen := 0
+	for _, w := range colWidths {
+		sepLen += w + 2
+	}
+	sep := "  " + strings.Repeat("─", sepLen)
+
+	var lines []explainLine
+	lines = append(lines, explainLine{})
+	lines = append(lines, explainLine{text: "  " + tbl.Title, color: lipgloss.Color("6"), bold: true})
+	lines = append(lines, explainLine{text: sep, color: lipgloss.Color("240")})
+	lines = append(lines, explainLine{text: formatRow(tbl.Headers), color: lipgloss.Color("7"), bold: true})
+	lines = append(lines, explainLine{text: sep, color: lipgloss.Color("240")})
+	for _, row := range tbl.Rows {
+		color := lipgloss.Color("243")
+		if row.Highlight {
+			color = lipgloss.Color("3")
+		}
+		lines = append(lines, explainLine{text: formatRow(row.Cells), color: color})
+	}
+	lines = append(lines, explainLine{text: sep, color: lipgloss.Color("240")})
 	return lines
 }
 

@@ -29,7 +29,7 @@ func (f *Footer) Tick() {
 
 func (f Footer) View(width int, label string) string {
 	style := lipgloss.NewStyle().
-		Bold(true).
+		Bold(false).
 		Background(f.theme.FooterBg).
 		Foreground(f.theme.FooterFg)
 
