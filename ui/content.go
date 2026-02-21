@@ -249,7 +249,7 @@ func (c Content) View(width, height int) string {
 
 	var editor string
 	if len(c.textareas) > 0 && c.Tabs.Active < len(c.textareas) {
-		editor = c.textareas[c.Tabs.Active].View()
+		editor = highlightSQL(c.textareas[c.Tabs.Active].View(), c.theme)
 	}
 
 	editorStyle := lipgloss.NewStyle().
