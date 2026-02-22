@@ -1,7 +1,3 @@
-before:
-  hooks:
-    - make install
-    - make gen
 builds:
   -
     goos:
