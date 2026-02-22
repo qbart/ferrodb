@@ -8,13 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:12.3-alpine
+        image: postgres:16.8
         ports:
-          - 5432:5432
+          - 5433:5432
         env:
-          POSTGRES_PASSWORD: secret
-          POSTGRES_USER: krab
-          POSTGRES_DB: krab
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -27,7 +27,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.21.4
+          go-version: 1.25.4
 
       - uses: actions/cache@v3
         with:
@@ -40,9 +40,7 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: "postgres://krab:secret@localhost:5432/krab?sslmode=disable&prefer_simple_protocol=true"
+          DATABASE_URL: "postgres://test:test@localhost:5432/test?sslmode=disable&prefer_simple_protocol=true"
         run: |
           mkdir -p bin/
-          make install
-          make gen
           go test -v ./...
