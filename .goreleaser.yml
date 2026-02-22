@@ -4,8 +4,6 @@ before:
     - make gen
 builds:
   -
-    ldflags:
-      - -s -w -X github.com/qbart/ferrodb/krab.InfoVersion={{.Version}} -X github.com/qbart/ferrodb/krab.InfoCommit={{.Commit}} -X github.com/qbart/ferrodb/krab.InfoBuildDate={{.Date}}
     goos:
       - linux
       - darwin
@@ -23,5 +21,5 @@ builds:
     env:
       - CGO_ENABLED=0
 
-    binary: krab
+    binary: ferro
 

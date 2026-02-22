@@ -346,7 +346,7 @@ func (a *App) Run(args []string) int {
 
 	root := &cli.Command{
 		Name:      "ferro",
-		Version:   "v0.20.0",
+		Version:   "v0.21.0",
 		Copyright: "(c) @qbart",
 		Usage:     "ferroDB is a tool for managing your databases",
 		UsageText: "ferro [global options] command [command options] [arguments...]",

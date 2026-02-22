@@ -1,75 +1,16 @@
 .PHONY: quicktest
 quicktest:
-	CGO_ENABLED=0 go test -v ./ferro/...
+	CGO_ENABLED=0 go test -v ./...
 
 .PHONY: ui
 ui:
 	CGO_ENABLED=0 go run main.go ui --raw postgresql:postgres://athena:athena@localhost:5432/athena
-
-.PHONY: web
-web:
-	KRAB_AUTH=none \
-	KRAB_AUTH_BASIC_USERNAME=krab \
-	KRAB_AUTH_BASIC_PASSWORD=secret \
-	DATABASE_URL="postgres://krab:secret@localhost:5432/krab?sslmode=disable" \
-	air
-
-.PHONY: gen
-gen:
-	templ generate
-
-.PHONY: install
-install:
-	go install github.com/cosmtrek/air@latest
-	go install github.com/a-h/templ/cmd/templ@latest
-
-.PHONY: default
-default:
-	export DATABASE_URL="postgres://krab:secret@localhost:5432/krab?sslmode=disable" && \
-	export KRAB_ENV=test && \
-	export KRAB_DIR=./test/fixtures/tests && \
-	make build && \
-	./bin/krab test && \
-	echo "ok"
 
 .PHONY: build
 build:
 	@mkdir -p bin/
 	@go build -o bin/ferro main.go
 	@cp bin/ferro ${HOME}/bin/ferro || echo "Failed to copy to ~/bin"
-
-.PHONY: test
-test:
-	DATABASE_URL="postgres://krab:secret@localhost:5432/krab?sslmode=disable&prefer_simple_protocol=true" go test -v ./... && echo "☑️ "
-
-.PHONY: docker_test
-docker_test:
-	docker run --rm -e DATABASE_URL="postgres://krab:secret@localhost:5432/krab?sslmode=disable" \
-		-v ${HOME}/oh/krab/test/fixtures/simple:/etc/krab:ro qbart/ferrodb-cli:${BUILD_VERSION} version
-
-.PHONY: docker_build
-docker_build:
-	docker build -t qbart/ferrodb:${BUILD_VERSION} \
-		--build-arg BUILD_VERSION=${BUILD_VERSION} \
-		--build-arg BUILD_COMMIT=${BUILD_COMMIT} \
-		--build-arg BUILD_DATE=${BUILD_DATE} \
-		.
-
-.PHONY: docker_push
-docker_push:
-	docker tag qbart/ferrodb:${BUILD_VERSION} qbart/ferrodb:latest
-	docker push qbart/ferrodb:${BUILD_VERSION}
-	docker push qbart/ferrodb:latest
-
-.PHONY: docker_nightly
-docker_nightly:
-	docker build -t qbart/ferrodb:nightly \
-		--build-arg BUILD_VERSION=nightly \
-		--build-arg BUILD_COMMIT=$$( git log -1 --pretty="format:%h" ) \
-		--build-arg BUILD_DATE=$$( date -u +"%Y-%m-%dT%H:%M:%SZ" ) \
-		.
-	docker tag qbart/ferrodb:nightly qbart/ferrodb:latest
-	docker push qbart/ferrodb:nightly
 
 .PHONY: changelog
 changelog:
