@@ -17,7 +17,7 @@ The `ui/` package implements a fullscreen terminal UI (TUI) for ferroDB using [B
 |   |   ▶ analytics    | id | name    | email          (results)      |
 |   |                  |  1 | Alice   | alice@...                     |
 +---+------------------+----------------------------------------------+
-| public                                           ◐ 500ms            |
+| ↑ ↓  j k  scroll    ctrl+g  switch view              ◐ 500ms       |
 +---------------------------------------------------------------------+
 ```
 
@@ -26,17 +26,17 @@ The `ui/` package implements a fullscreen terminal UI (TUI) for ferroDB using [B
   - Header: bold title line
   - Body: Tree component with 1-char padding on all sides
 - **Content**: remaining width, split 50/50 vertically
-  - Tabs header: tab bar — active tab teal (focused) or light gray (blurred)
+  - Tabs header: tab bar — active tab accent (focused) or light gray (blurred)
   - Top half: textarea (editable, with line numbers)
   - Bottom half: results viewport
-- **Footer**: single line pinned to bottom — selected item label on left, spinner + elapsed ms on right during query
+- **Footer**: single line pinned to bottom — context label/shortcuts on left, spinner + elapsed ms on right during query
 
 ## Files
 
 | File | Struct | Purpose |
 |------|--------|---------|
 | `tui.go` | `TUI` | Root Bubble Tea model. Composes all components, handles input routing and layout |
-| `theme.go` | `Theme` | Single source of truth for all colors. Every component receives `Theme` at construction |
+| `theme.go` | `Theme` | Single source of truth for all colors. Package-level `Accent`, `AccentInactive`, `Black` vars for direct use |
 | `navbar.go` | `Navbar` | Vertical icon navigation. Manages `NavItem` enum, active state, `Next()`/`Prev()` cycling |
 | `sidebar.go` | `Sidebar` | Header + Tree panel |
 | `tree.go` | `Tree` | Lazy-loading recursive tree with expandable/loaded state, spinner, scrolling |
@@ -46,41 +46,56 @@ The `ui/` package implements a fullscreen terminal UI (TUI) for ferroDB using [B
 | `highlight.go` | — | SQL keyword highlighting — post-processes textarea ANSI output |
 | `help.go` | `Help` | Centered overlay showing keyboard shortcuts, toggled with F1 |
 | `row_detail.go` | `RowDetail` | Fullscreen overlay showing all column values for selected result row |
-| `footer.go` | `Footer` | Bottom status bar — context label left, spinner + ms right during queries |
+| `explain_view.go` | `ExplainView` | Scrollable explain plan view — hierarchical node boxes + per-node-type stats table |
+| `footer.go` | `Footer` | Bottom status bar — context label/shortcuts left, spinner + ms right during queries |
+| `clipboard.go` | — | `ClipboardWrite([]byte)` / `ClipboardWriteString(string)` helpers using `go-nativeclipboard` |
 
 ## Theme
 
-`theme.go` is the single source of truth for all colors. Components never hardcode colors — they read from the `Theme` struct passed during construction.
+`theme.go` is the single source of truth for all colors. Components never hardcode colors — they read from the `Theme` struct passed during construction, or use the package-level color variables directly.
+
+### Package-level color variables
+
+```go
+var (
+    Accent         = lipgloss.Color("37")
+    AccentInactive = lipgloss.Color("245")
+    Black          = lipgloss.Color("234")
+)
+```
+
+Use these directly in helper functions that do not receive a `Theme` (e.g. `buildNodeBox`, `buildExplainTableLines`).
 
 ### Palette (ANSI 256)
 
-| Token | Code | Hex | Usage |
-|-------|------|-----|-------|
-| `Bg` | 235 | `#262626` | Content background |
-| `Fg` | 252 | `#d0d0d0` | Primary text |
-| `Muted` | 243 | `#767676` | Secondary/placeholder text, inactive tabs |
-| `Accent` | 6 | `#008080` | Interactive elements (cyan) |
-| `AccentInactive` | 245 | `#8a8a8a` | Unfocused cursor in tree, active tab when content blurred |
-| `Success` | 2 | `#008000` | Success status (green) |
-| `Danger` | 1 | `#800000` | Error/modified indicator (red dot) |
-| `Warning` | 3 | `#808000` | Warning status (yellow) |
-| `FooterBg` | 30 | `#008080` | Footer bar + active tab background (teal) |
-| `FooterFg` | 234 | `#1c1c1c` | Footer bar + active tab text (dark) |
-| `SidebarBg` | 236 | `#303030` | Sidebar body background |
-| `SidebarHeaderBg` | 237 | `#3a3a3a` | Sidebar header + tab bar filler background |
-| `SidebarHeaderFg` | 252 | `#d0d0d0` | Sidebar header text |
-| `NavBg` | 235 | `#262626` | Navbar background |
-| `NavFg` | 116 | `#87d7d7` | Navbar icon color (light teal) |
-| `NavActiveBg` | 30 | `#008080` | Active nav icon background (teal) |
-| `NavActiveFg` | 234 | `#1c1c1c` | Active nav icon text (dark) |
+| Token | Code | Usage |
+|-------|------|-------|
+| `Bg` | 235 | Content background |
+| `Fg` | 252 | Primary text |
+| `Muted` | 243 | Secondary/placeholder text, inactive tabs |
+| `Accent` | 37 | Interactive elements, node names, table titles |
+| `AccentInactive` | 245 | Unfocused cursor in tree, active tab when content blurred |
+| `Success` | 2 | Success status (green) |
+| `Danger` | 1 | Error/modified indicator (red dot) |
+| `Warning` | 3 | Warning status (yellow) |
+| `FooterBg` | 37 (=Accent) | Footer bar + active tab background |
+| `FooterFg` | 234 (=Black) | Footer bar + active tab text (dark) |
+| `SidebarBg` | 236 | Sidebar body background |
+| `SidebarHeaderBg` | 237 | Sidebar header + tab bar filler background |
+| `SidebarHeaderFg` | 252 | Sidebar header text |
+| `NavBg` | 235 | Navbar background |
+| `NavFg` | 37 (=Accent) | Navbar icon color |
+| `NavActiveBg` | 37 (=Accent) | Active nav icon background |
+| `NavActiveFg` | 234 (=Black) | Active nav icon text (dark) |
 
 ### Design Rules
 
 - Use ANSI 256 palette for terminal compatibility
-- Never set colors directly in components — always go through `Theme`
-- Active state (focused): teal (`FooterBg`/`NavActiveBg`)
+- Never set colors directly in components — always go through `Theme` or the package-level vars
+- **Every `lipgloss.NewStyle()` call must explicitly set `Bold(true)` or `Bold(false)`** — bold bleeds through concatenated renders if left unset
+- Active state (focused): accent (`FooterBg`/`NavActiveBg`)
 - Active state (unfocused/blurred): light gray (`AccentInactive`)
-- Text on teal or gray backgrounds uses dark (`FooterFg`)
+- Text on accent or gray backgrounds uses dark (`FooterFg`/`Black`)
 - Tab bar filler uses `SidebarHeaderBg`
 - Modified tabs show a red `•` dot (`Danger`) — dot background matches active tab bg
 
@@ -135,13 +150,14 @@ Lazy-loading recursive tree. Each `TreeItem` tracks:
 | `CursorExpandable()` | bool | Whether cursor item is expandable |
 | `CursorIDPath()` | `[]string` | Full ID path to cursor (for Show/Load) |
 | `CursorPath()` | `([]string, bool)` | Full label path to cursor (for footer display) |
+| `CursorLabel()` | string | Label of the cursor item (for clipboard copy) |
 
 **Spinner frames:** `◐ ◓ ◑ ◒` (advances every 50ms tick while any item is loading)
 
 ### Tabs
 
 `Tabs.Focused bool` controls active tab color:
-- `Focused = true` (content has keyboard focus): active tab uses `FooterBg`/`FooterFg` (teal)
+- `Focused = true` (content has keyboard focus): active tab uses `FooterBg`/`FooterFg` (accent)
 - `Focused = false` (tree has focus): active tab uses `AccentInactive` (light gray)
 
 `Content.Focus()` and `Content.Blur()` set `Tabs.Focused`. All tab switching helpers (`AddTab`, `NextTab`, `PrevTab`, `GoToTab`) preserve the current focused state — switching tabs never steals focus back from the tree.
@@ -150,17 +166,37 @@ Lazy-loading recursive tree. Each `TreeItem` tracks:
 
 Each tab has its own `textarea.Model` (bubbles) and `Results` viewport. The textarea has line numbers enabled, no prompt prefix, and fully themed styles. New tabs are created via `AddTab()` and auto-sized based on current dimensions.
 
+### ExplainView
+
+Activated via `Ctrl+E` (parses active tab's result data as JSON EXPLAIN ANALYZE output) or `Ctrl+G` (switches to the NavExplain nav section).
+
+Renders two sections:
+1. **Plan tree** — each node is a Unicode box (`┌─┐│└─┘`) with `├─▶`/`└─▶` connectors to children. Node name in bold accent. Content lines in muted color, highlighted lines in yellow.
+2. **Summary lines** — planning/execution time, sort/hash memory totals (plugin-owned, `SummaryLines []BrowserExplainLine`)
+3. **Tables** — e.g. "Per node type stats" with title in bold accent, separator lines, column-aligned rows
+
+Box sizing: each depth level = 4 terminal cells. `boxContentWidth = totalWidth - nodeDepth*4 - 4`.
+
+Bordered cell rendering splits into three segments to avoid bold bleed:
+```
+borderStyle.Render(indent+"│ ") + contentStyle.Render(text) + borderStyle.Render(" │")
+```
+`contentStyle.Bold(line.bold)` is always explicit.
+
+Scrolling: `rowOffset int`, `ScrollUp()` / `ScrollDown(height, width int)`. `buildLines(width)` is called both for rendering and for computing scroll bounds.
+
 ### Footer
 
-- **Left**: selected item label when tree is focused (schema name, or table/view name — never the intermediate "Tables"/"Views" level); empty when editor is focused
+- **Explain mode**: shows `↑ ↓  j k  scroll    ctrl+g  switch view`
+- **Tree focused**: shows selected item label (schema name, or table/view name — never the intermediate "Tables"/"Views" level)
+- **Otherwise**: empty left side
 - **Right**: spinner (`◐◓◑◒`) + elapsed ms while query running; final ms after done; empty otherwise
 
-**Footer label logic:**
-- Tree not focused → empty
-- Cursor at depth 0 (schema) or depth 1 (Tables/Views/… fixed level) → shows the schema name
-- Cursor at depth 2 (table or view name) → shows the table/view name
-- Cursor at depth 3 (table sub-category: Columns/Indexes/Constraints/…) → shows the table name
-- Cursor at depth 4 (column/index/constraint name) → shows the item name
+**Footer label logic (tree focused):**
+- Depth 0 (schema) or depth 1 (Tables/Views/… fixed level) → schema name
+- Depth 2 (table or view name) → table/view name
+- Depth 3 (sub-category: Columns/Indexes/…) → table name
+- Depth 4 (column/index/constraint name) → item name
 
 ### Help
 
@@ -177,14 +213,45 @@ type Browser interface {
     List(ctx context.Context, ids []string) ([]BrowserItem, error)
     Show(ctx context.Context, ids []string) (string, error)
     Query(ctx context.Context, sql string) (BrowserQueryResult, error)
+    ParseExplain(data BrowserQueryResult) (BrowserExplainResult, error)
 }
 
 type BrowserItem struct {
-    ID          string
-    Name        string
+    ID          string  // stable identifier for path operations
+    Name        string  // display label (may differ, e.g. "col_name (data_type)")
     HasChildren bool
 }
+
+type BrowserExplainLine struct {
+    Text      string
+    Highlight bool
+}
+
+type BrowserExplainNode struct {
+    Name     string
+    Lines    []BrowserExplainLine
+    Children []BrowserExplainNode
+}
+
+type BrowserExplainRow struct {
+    Cells     []string
+    Highlight bool
+}
+
+type BrowserExplainTable struct {
+    Title   string
+    Headers []string
+    Rows    []BrowserExplainRow
+}
+
+type BrowserExplainResult struct {
+    Root         BrowserExplainNode
+    SummaryLines []BrowserExplainLine  // plugin-owned footer (timing, memory)
+    Tables       []BrowserExplainTable // plugin-owned analytics tables
+}
 ```
+
+**`ParseExplain`**: receives the raw `BrowserQueryResult` (expected to be JSON EXPLAIN ANALYZE output), parses it, and builds the full `BrowserExplainResult` hierarchy. The view is a pure consumer — all business logic lives in the plugin.
 
 **`List` path convention (PostgreSQL):**
 
@@ -203,7 +270,7 @@ type BrowserItem struct {
 | `["schema", "sequence"]` | Sequences |
 | `["schema", "foreign_table"]` | Foreign tables |
 | `["schema", "table", "name"]` | Sub-categories: Columns, Indexes, Constraints, Triggers, Policies, Partitions (if partitioned) |
-| `["schema", "table", "name", "column"]` | Column names (ordinal order) |
+| `["schema", "table", "name", "column"]` | `"col_name (data_type)"` labels, `ID = col_name` |
 | `["schema", "table", "name", "index"]` | Index names |
 | `["schema", "table", "name", "constraint"]` | Constraint names |
 | `["schema", "table", "name", "trigger"]` | Trigger names |
@@ -232,31 +299,42 @@ type BrowserItem struct {
 | `Tab` | Cycle focus forward: tree → editor → results → tree (skips results if empty, skips tree if hidden) |
 | `Shift+Tab` | Cycle focus backward |
 | `Ctrl+\` | Toggle sidebar (auto-moves focus to editor if tree was focused) |
+| `Ctrl+G` | Cycle nav (Data ↔ Explain) |
 | `Ctrl+T` | New tab |
 | `Ctrl+W` | Close active tab (only when editor focused; no-op if only one tab) |
 | `Ctrl+R` | Run query (uses active tab's textarea content) |
-| `Ctrl+Left` | Previous tab |
-| `Ctrl+Right` | Next tab |
+| `Ctrl+E` | Parse active result as EXPLAIN ANALYZE, switch to Explain view |
+| `Ctrl+Y` | Copy active tab's query text to clipboard (editor focus) |
+| `Ctrl+Left` / `Ctrl+H` | Previous tab |
+| `Ctrl+Right` / `Ctrl+L` | Next tab |
+
+### Explain view (when NavExplain active)
+
+| Key | Action |
+|-----|--------|
+| `↑` / `k` | Scroll up |
+| `↓` / `j` | Scroll down |
 
 ### Tree (when tree focused)
 
 | Key | Action |
 |-----|--------|
-| `↑` | Move cursor up |
-| `↓` | Move cursor down |
-| `←` | Collapse parent (or self at root level) |
-| `→` | Expand / load item |
+| `↑` / `k` | Move cursor up |
+| `↓` / `j` | Move cursor down |
+| `←` / `h` | Collapse parent (or self at root level) |
+| `→` / `l` | Expand / load item |
 | `Enter` | Open item query in new tab and run it immediately |
 | `Shift+R` | Reload root list from DB |
+| `y` | Copy cursor item label to clipboard |
 
 ### Results (when results focused)
 
 | Key | Action |
 |-----|--------|
-| `↑` | Move row cursor up |
-| `↓` | Move row cursor down |
-| `←` | Scroll columns left (or chars left in single-column mode) |
-| `→` | Scroll columns right (or chars right in single-column mode) |
+| `↑` / `k` | Move row cursor up |
+| `↓` / `j` | Move row cursor down |
+| `←` / `h` | Scroll columns left (or chars left in single-column mode) |
+| `→` / `l` | Scroll columns right (or chars right in single-column mode) |
 | `Enter` | Open fullscreen row detail overlay |
 
 ### Row Detail overlay
@@ -272,6 +350,17 @@ type BrowserItem struct {
 | `y` | Copy selected column value to clipboard |
 | `Enter` / `Esc` / `Ctrl+C` | Close overlay |
 
+## Clipboard
+
+All clipboard writes go through `ui/clipboard.go`:
+
+```go
+func ClipboardWriteString(data string)
+func ClipboardWrite(data []byte)
+```
+
+Uses `github.com/aymanbagabas/go-nativeclipboard`. No initialization call needed — errors are silently ignored. Used in: `row_detail.go` (`y` copies column value), `tui.go` (`Ctrl+Y` copies editor text, `y` in tree copies item label).
+
 ## Options / CLI
 
 ```go
@@ -279,6 +368,7 @@ type Options struct {
     RawDriver string          // driver name (e.g. "postgresql")
     RawDSN    string          // connection string
     Registry  *plugins.Registry
+    Version   string
 }
 ```
 
@@ -302,7 +392,7 @@ Keywords covered: `SELECT FROM WHERE JOIN LEFT RIGHT INNER OUTER FULL CROSS ON A
 `results.go` renders a scrollable table from `ResultData{Headers, Rows, ColumnTypes}`.
 
 - **Header row**: always visible, 1 line — `SidebarHeaderBg`/`Fg` when focused, `SidebarBg`/`Muted` when not
-- **Row cursor**: teal (`NavActiveBg`/`NavActiveFg`) when focused, light gray (`AccentInactive`/`FooterFg`) when not
+- **Row cursor**: accent (`NavActiveBg`/`NavActiveFg`) when focused, light gray (`AccentInactive`/`FooterFg`) when not
 - **Vertical scroll**: `cursor int` + `rowOffset int`; `EnsureVisible(height)` called from `Update` after movement
 - **Horizontal scroll**: `colOffset int` shifts which column is leftmost (multi-column); `charOffset int` scrolls character-by-character within the cell (single-column)
 - **Column widths**: computed once on `SetData` via `computeWidths`; capped at `maxColWidth = 50` (multi-column) or `maxColWidthSingle = 200` (single-column)
@@ -318,7 +408,6 @@ Fullscreen overlay triggered by `Enter` on a focused result row. Shows all colum
 - **`colCursor int`**: tracks selected column; updates automatically during line scroll (`syncColCursor`)
 - **`rowOffset int`**: line-based vertical scroll; auto-set to selected column's header line on `JumpNext`/`JumpPrev`
 - **`colOffset int`**: character-level horizontal scroll (rune offset applied via `cropRunes`)
-- **Clipboard**: `y` calls `clipboard.Init()` then `clipboard.Write(FmtText, value)` using `golang.design/x/clipboard`
 - **Overlay intercepts all keys** before the main switch — `Ctrl+C` closes it instead of quitting
 
 ### Column Types
@@ -329,11 +418,12 @@ Fullscreen overlay triggered by `Enter` on a focused result row. Shows all colum
 
 1. Create `ui/<name>.go` with a struct that takes `Theme` in its constructor
 2. Add a `View(...)` method returning `string` — pass dimensions as arguments, use value receiver
-3. Add any new color tokens to `Theme` struct and `DefaultTheme` in `theme.go`
-4. Compose in `TUI` — add the field, initialize in `New()`, call `View()` in `TUI.View()`
-5. Route key inputs in `TUI.Update()`
-6. If resizable, update `TUI.resizeContent()` and handle in `Content.Resize()`
-7. If it has a focus state, ensure `Focus()`/`Blur()` methods preserve focus when switching tabs
+3. Every `lipgloss.NewStyle()` must include `.Bold(true)` or `.Bold(false)` explicitly
+4. Add any new color tokens to `Theme` struct and `DefaultTheme` in `theme.go`
+5. Compose in `TUI` — add the field, initialize in `New()`, call `View()` in `TUI.View()`
+6. Route key inputs in `TUI.Update()`
+7. If resizable, update `TUI.resizeContent()` and handle in `Content.Resize()`
+8. If it has a focus state, ensure `Focus()`/`Blur()` methods preserve focus when switching tabs
 
 ## Bubble Tea Gotchas
 
@@ -341,3 +431,4 @@ Fullscreen overlay triggered by `Enter` on a focused result row. Shows all colum
 - The same applies to all sub-component `View` methods — they must be value receivers.
 - Scroll state (`Tree.scrollOffset`) is mutated only via `EnsureVisible()` which is a pointer receiver called from `Update`.
 - `tickCmd()` schedules a 50ms recurring tick — it must be re-issued each tick as long as something is loading/running. Both the tree spinner and footer spinner share the same tick.
+- **Bold bleed**: when concatenating `Render()` calls with `+`, bold state from one segment can carry into the next if the following style does not explicitly set `Bold(false)`. Always set Bold explicitly on every style.
