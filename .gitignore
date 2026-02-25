@@ -25,3 +25,4 @@ views/*_templ.go
 .ferro/
 #
 .cache/
+.claude/
