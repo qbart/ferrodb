@@ -117,7 +117,7 @@ func (c *cliMock) RandomDatabase() func() {
 	case "sqlite":
 		return c.RandomSQLiteDatabase()
 	default:
-		panic("unhandled test driver")
+        panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
 }
 
