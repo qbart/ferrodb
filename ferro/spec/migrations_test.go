@@ -34,7 +34,7 @@ spec:
   version: "v1"
   run:
     up:
-      sql: CREATE TABLE animals();
+      sql: CREATE TABLE animals(id integer);
     down:
       sql: DROP TABLE animals;
 `,

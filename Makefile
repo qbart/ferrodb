@@ -1,6 +1,10 @@
-.PHONY: test
-test:
-	CGO_ENABLED=0 TEST_DRIVER=sqlite go test -v ./...
+.PHONY: test.sqlite
+test.sqlite:
+	CGO_ENABLED=0 TEST_DRIVER=sqlite go test ./...
+
+.PHONY: test.pg
+test.pg:
+	CGO_ENABLED=0 TEST_DRIVER=postgresql go test ./...
 
 .PHONY: ui
 ui:

@@ -216,7 +216,7 @@ spec:
   version: "v1"
   run:
     up:
-      sql: CREATE TABLE animals();
+      sql: CREATE TABLE animals(id integer);
     down:
       sql: DROP TABLE;
 `,
@@ -232,7 +232,7 @@ spec:
 	data.AssertTableExists("animals")
 
 	cli.AssertNotRun("migrate", "down", "--driver", "test", "--set", "public", "--version", "v1")
-	cli.AssertErrorContains(`exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`)
+	cli.AssertErrorContains(`exec: failed to execute query`)
 	cli.ResetAllOutputs()
 
 	audit := cli.Audit("test", "public")

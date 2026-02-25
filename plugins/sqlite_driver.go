@@ -350,6 +350,7 @@ func (q *SQLiteDriverQuery) Query(ctx context.Context, query string, args ...any
 			return nil, fmt.Errorf("failed to row scan: %w", err)
 		}
 		result.Rows = append(result.Rows, values)
+        result.AffectedRows += 1
 	}
 
 	return result, nil

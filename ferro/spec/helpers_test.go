@@ -117,7 +117,7 @@ func (c *cliMock) RandomDatabase() func() {
 	case "sqlite":
 		return c.RandomSQLiteDatabase()
 	default:
-        panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
+		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
 }
 
@@ -477,29 +477,16 @@ func (d *assertData) AssertTableExists(name string) {
 	}
 	defer close()
 
-	schema := d.execCtx.Schema
-	if schema == "" {
-		schema = "public"
-	}
-
-	q := `
-SELECT EXISTS (
-  SELECT 1
-  FROM information_schema.tables
-  WHERE table_schema = $1
-    AND table_name = $2
-);
-    `
-	result, err := conn.Query(d.execCtx).Query(context.Background(), q, schema, d.execCtx.Prefix+name)
+	result, err := tableExistsQuery(context.Background(), conn, d.execCtx, name)
 	if err != nil {
 		d.T.Fatalf("failed to check if table exists: %v", err)
 	}
 	if result.AffectedRows != 1 {
-		d.T.Fatalf("query returned invalid number of rows")
+		d.T.Fatalf("query returned invalid number of rows(%d)", result.AffectedRows)
 	}
 
-	exists := result.Rows[0][0].(bool)
-	if !exists {
+	exists := result.Rows[0][0].(int64)
+	if exists == 0 {
 		d.T.Fatalf("table `%s` does not exist but it should", name)
 	}
 }
@@ -511,30 +498,55 @@ func (d *assertData) AssertTableNotExists(name string) {
 	}
 	defer close()
 
-	schema := d.execCtx.Schema
-	if schema == "" {
-		schema = "public"
-	}
-
-	q := `
-SELECT EXISTS (
-  SELECT 1
-  FROM information_schema.tables
-  WHERE table_schema = $1
-    AND table_name = $2
-);
-`
-	result, err := conn.Query(d.execCtx).Query(context.Background(), q, schema, d.execCtx.Prefix+name)
+	result, err := tableExistsQuery(context.Background(), conn, d.execCtx, name)
 	if err != nil {
 		d.T.Fatalf("failed to check if table exists: %v", err)
 	}
 	if result.AffectedRows != 1 {
-		d.T.Fatalf("query returned invalid number of rows")
+		d.T.Fatalf("query returned invalid number of rows(%d)", result.AffectedRows)
 	}
 
-	exists := result.Rows[0][0].(bool)
-	if exists {
+	exists := result.Rows[0][0].(int64)
+	if exists == 1 {
 		d.T.Fatalf("table `%s` exists but it should not", name)
+	}
+}
+
+func tableExistsQuery(ctx context.Context, conn plugin.DriverConnection, execCtx plugin.DriverExecutionContext, name string) (*plugin.DriverQueryResult, error) {
+	testPluginDriver := os.Getenv("TEST_DRIVER")
+
+	switch testPluginDriver {
+	case "postgresql":
+		schema := execCtx.Schema
+		if schema == "" {
+			schema = "public"
+		}
+		q := `
+    SELECT CASE WHEN EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = $1
+        AND table_name = $2
+        ) THEN 1::bigint ELSE 0::bigint END;`
+		return conn.Query(execCtx).Query(ctx, q, schema, execCtx.Prefix+name)
+
+	case "sqlite":
+		q := `
+    SELECT EXISTS (
+      SELECT 1
+      FROM sqlite_schema
+      WHERE type = 'table'
+        AND name = ?
+        AND name NOT LIKE 'sqlite_%'
+    );`
+		schema := execCtx.Schema
+		if schema == "" {
+			schema = "main"
+		}
+		return conn.Query(execCtx).Query(context.Background(), q, execCtx.Prefix+name)
+
+	default:
+		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
 }
 
