@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -99,7 +100,7 @@ func NewTestCLI(t *testing.T) (*cliMock, func()) {
 }
 
 func (c *cliMock) SetTime(stime string) {
-    loc := time.Now().Location()
+	loc := time.Now().Location()
 	layout := "2006-01-02 15:04"
 	t, err := time.ParseInLocation(layout, stime, loc)
 	if err != nil {
@@ -109,6 +110,54 @@ func (c *cliMock) SetTime(stime string) {
 }
 
 func (c *cliMock) RandomDatabase() func() {
+	testPluginDriver := os.Getenv("TEST_DRIVER")
+	switch testPluginDriver {
+	case "postgresql":
+		return c.RandomPostreSQLDatabase()
+	case "sqlite":
+		return c.RandomSQLiteDatabase()
+	default:
+		panic("unhandled test driver")
+	}
+}
+
+func (c *cliMock) RandomSQLiteDatabase() func() {
+	dbID := fmt.Sprintf("test_%s.sqlite", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	os.MkdirAll("tmp", 0755)
+	path := filepath.Join("tmp", dbID)
+	// execCtx := plugin.DriverExecutionContext{} no needed for sqlite at creation
+	ctx := context.Background()
+
+	driver := plugins.NewSQLiteDriver()
+	err := driver.CreateDatabase(ctx, path)
+	if err != nil {
+		c.T.Fatalf("failed to create database %v", err)
+	}
+
+	dbTeardown := func() {
+		err := os.Remove(path)
+		if err != nil {
+			c.T.Fatalf("failed to remove database %v", err)
+		}
+	}
+	c.Files(
+		"config.fyml",
+		fmt.Sprintf(`
+apiVersion: drivers/v1
+kind: Driver
+metadata:
+  name: test
+spec:
+  driver: sqlite
+  config:
+    path: %s
+        `, path),
+	)
+
+	return dbTeardown
+}
+
+func (c *cliMock) RandomPostreSQLDatabase() func() {
 	dbID := fmt.Sprintf("test_%s", strings.ReplaceAll(uuid.NewString(), "-", ""))
 	execCtx := plugin.DriverExecutionContext{
 		Schema: "public",
@@ -187,11 +236,11 @@ func (c *cliMock) Checksum(migration string) string {
 	if err != nil {
 		c.T.Fatalf("cannot use config for checksum: %v", err)
 	}
-    mig, ok := config.Migrations[migration]
-    if !ok {
-        c.T.Fatalf("migration `%s` does not exist to calculate checkum", migration)
-    }
-    return string(mig.Checksum)
+	mig, ok := config.Migrations[migration]
+	if !ok {
+		c.T.Fatalf("migration `%s` does not exist to calculate checkum", migration)
+	}
+	return string(mig.Checksum)
 }
 
 func (c *cliMock) Files(pathContentPair ...string) {

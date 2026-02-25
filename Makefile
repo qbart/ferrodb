@@ -1,6 +1,6 @@
-.PHONY: quicktest
-quicktest:
-	CGO_ENABLED=0 go test -v ./...
+.PHONY: test
+test:
+	CGO_ENABLED=0 TEST_DRIVER=sqlite go test -v ./...
 
 .PHONY: ui
 ui:
@@ -9,7 +9,7 @@ ui:
 .PHONY: build
 build:
 	@mkdir -p bin/
-	@go build -o bin/ferro main.go
+	@CGO_ENABLED=0 go build -o bin/ferro main.go
 	@cp bin/ferro ${HOME}/bin/ferro || echo "Failed to copy to ~/bin"
 
 .PHONY: changelog

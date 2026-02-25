@@ -1,5 +1,7 @@
 # FerroDB
 
+FerroDB is a database management tool. Focused on explicit, auditable schema migrations with built in terminal browser.
+
 <img src="./res/ferrodb.svg" width="64" />
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/qbart/krab)](https://goreportcard.com/report/github.com/qbart/ferrodb)
@@ -8,10 +10,29 @@
 
 ## Roadmap
 
-todo:
-- Add checksum
-- handle failed/repairs
-- add more tests
-- fix fix up/down when down/up failed
-- documentation
+-[ ] checksum handling and operation
+-[ ] drivers (in progress)
+-[ ] drivers
+-[ ] documentation
 
+## Drivers
+
+-[x] PostgreSQL
+-[ ] SQLite (in progress)
+-[ ] MySQL / MariaDB
+-[ ] DuckDB
+-[ ] Clickhouse
+-[ ] Snowflake
+-[ ] MSSQL (no unless high demand)
+-[ ] Oracle (no unless high demand)
+
+## Browser Drivers
+
+-[x] PostgreSQL
+-[ ] SQLite
+-[ ] MySQL / MariaDB
+-[ ] DuckDB
+-[ ] Clickhouse
+-[ ] Snowflake
+-[ ] MSSQL (no unless high demand)
+-[ ] Oracle (no unless high demand)

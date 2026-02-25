@@ -5,6 +5,12 @@ on:
 
 jobs:
   test:
+     strategy:
+      matrix:
+        driver:
+          - postgresql
+          - sqlite
+
     runs-on: ubuntu-latest
     services:
       postgres:
