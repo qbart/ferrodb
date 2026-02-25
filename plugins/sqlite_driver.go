@@ -3,7 +3,10 @@ package plugins
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"modernc.org/sqlite"
@@ -73,9 +76,6 @@ func (d *SQLiteDriver) Connect(ctx context.Context, config config.DriverConfig) 
 	// single writer ever, no concurrency
 	write.SetMaxOpenConns(1)
 	write.SetConnMaxIdleTime(time.Minute)
-	if err != nil {
-		return &SQLiteDriverConnection{}, err
-	}
 
 	read, err := sql.Open("sqlite", "file:"+path)
 	if err != nil {
@@ -95,7 +95,7 @@ func (d *SQLiteDriver) Connect(ctx context.Context, config config.DriverConfig) 
 func (d *SQLiteDriver) Disconnect(ctx context.Context, conn plugin.DriverConnection) error {
 	driverConn := conn.(*SQLiteDriverConnection)
 	readErr := driverConn.Read.Close()
-    writeErr := driverConn.Write.Close()
+	writeErr := driverConn.Write.Close()
 	if readErr != nil {
 		return fmt.Errorf("failed to disconnect from SQLite(read) database: %w", readErr)
 	}
@@ -105,52 +105,282 @@ func (d *SQLiteDriver) Disconnect(ctx context.Context, conn plugin.DriverConnect
 	return nil
 }
 
-func (c *SQLiteDriverConnection) LockAuditLog(ctx context.Context, execCtx plugin.DriverExecutionContext, lock plugin.DriverAuditLock) error {
-	return fmt.Errorf("not implemented")
-}
-
 func (c *SQLiteDriverConnection) UpsertAuditLogTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
-	return fmt.Errorf("not implemented")
+	columns := []string{
+		sqliteColumnDefinition(&plugin.DriverAuditColumnID),
+		sqliteColumnDefinition(&plugin.DriverAuditColumnAppliedAt),
+		sqliteColumnDefinition(&plugin.DriverAuditColumnEvent),
+		sqliteColumnDefinition(&plugin.DriverAuditColumnData),
+		sqliteColumnDefinition(&plugin.DriverAuditColumnMetadata),
+	}
+	_, err := c.Write.ExecContext(ctx,
+		fmt.Sprintf(
+			`CREATE TABLE IF NOT EXISTS %s (%s)`,
+			sqliteTableName(execCtx, plugin.DriverAuditLogTableName),
+			strings.Join(columns, ","),
+		),
+	)
+	return err
 }
 
 func (c *SQLiteDriverConnection) UpsertAuditLockTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
-	return fmt.Errorf("not implemented")
+	columns := []string{
+		sqliteColumnDefinition(&plugin.DriverAuditLockColumnID),
+		sqliteColumnDefinition(&plugin.DriverAuditLockColumnLockedAt),
+		sqliteColumnDefinition(&plugin.DriverAuditLockColumnLockedBy),
+		sqliteColumnDefinition(&plugin.DriverAuditLockColumnData),
+	}
+	_, err := c.Write.ExecContext(ctx,
+		fmt.Sprintf(
+			`CREATE TABLE IF NOT EXISTS %s (%s)`,
+			sqliteTableName(execCtx, plugin.DriverAuditLockTableName),
+			strings.Join(columns, ","),
+		),
+	)
+	return err
 }
 
 func (c *SQLiteDriverConnection) AppendAuditLog(ctx context.Context, execCtx plugin.DriverExecutionContext, log plugin.DriverAuditLog) error {
-	return fmt.Errorf("not implemented")
+	data, err := json.Marshal(log.Data)
+	if err != nil {
+		return fmt.Errorf("marshal data: %w", err)
+	}
+
+	var metadataArg any
+	if log.Metadata != nil {
+		b, err := json.Marshal(log.Metadata)
+		if err != nil {
+			return fmt.Errorf("marshal metadata: %w", err)
+		}
+		metadataArg = string(b)
+	}
+
+	query := fmt.Sprintf(
+		`INSERT INTO %s (%s, %s, %s, %s, %s) VALUES (?, ?, ?, ?, ?)`,
+		sqliteTableName(execCtx, plugin.DriverAuditLogTableName),
+		sqliteQuoteIdent(plugin.DriverAuditColumnID.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnAppliedAt.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnEvent.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnData.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnMetadata.Name),
+	)
+	_, err = c.Write.ExecContext(ctx, query,
+		log.ID,
+		log.AppliedAt.Format(time.RFC3339Nano),
+		log.Event,
+		string(data),
+		metadataArg,
+	)
+	return err
 }
 
 func (c *SQLiteDriverConnection) ReadAuditLogs(ctx context.Context, execCtx plugin.DriverExecutionContext) ([]plugin.DriverAuditLog, error) {
-	return nil, fmt.Errorf("not implemented")
+	query := fmt.Sprintf(
+		`SELECT %s, %s, %s, %s, %s FROM %s ORDER BY 1`,
+		sqliteQuoteIdent(plugin.DriverAuditColumnID.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnAppliedAt.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnEvent.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnData.Name),
+		sqliteQuoteIdent(plugin.DriverAuditColumnMetadata.Name),
+		sqliteTableName(execCtx, plugin.DriverAuditLogTableName),
+	)
+	rows, err := c.Read.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query: %w", err)
+	}
+	defer rows.Close()
+
+	logs := make([]plugin.DriverAuditLog, 0)
+	for rows.Next() {
+		var entry plugin.DriverAuditLog
+		var appliedAt string
+		var data string
+		var metadata sql.NullString
+
+		if err := rows.Scan(&entry.ID, &appliedAt, &entry.Event, &data, &metadata); err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+
+		entry.AppliedAt, err = time.Parse(time.RFC3339Nano, appliedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse time: %w", err)
+		}
+
+		if err := json.Unmarshal([]byte(data), &entry.Data); err != nil {
+			return nil, fmt.Errorf("unmarshal data: %w", err)
+		}
+
+		if metadata.Valid {
+			if err := json.Unmarshal([]byte(metadata.String), &entry.Metadata); err != nil {
+				return nil, fmt.Errorf("unmarshal metadata: %w", err)
+			}
+		}
+
+		logs = append(logs, entry)
+	}
+	return logs, nil
+}
+
+func (c *SQLiteDriverConnection) LockAuditLog(ctx context.Context, execCtx plugin.DriverExecutionContext, lock plugin.DriverAuditLock) error {
+	data, err := json.Marshal(lock.Data)
+	if err != nil {
+		return fmt.Errorf("marshal data: %w", err)
+	}
+
+	query := fmt.Sprintf(
+		`INSERT INTO %s (%s, %s, %s, %s) VALUES (?, ?, ?, ?)`,
+		sqliteTableName(execCtx, plugin.DriverAuditLockTableName),
+		sqliteQuoteIdent(plugin.DriverAuditLockColumnID.Name),
+		sqliteQuoteIdent(plugin.DriverAuditLockColumnLockedAt.Name),
+		sqliteQuoteIdent(plugin.DriverAuditLockColumnLockedBy.Name),
+		sqliteQuoteIdent(plugin.DriverAuditLockColumnData.Name),
+	)
+	_, err = c.Write.ExecContext(ctx, query,
+		lock.ID,
+		lock.LockedAt.Format(time.RFC3339Nano),
+		lock.LockedBy,
+		string(data),
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return plugin.ErrAuditAlreadyLocked
+		}
+		return err
+	}
+	return nil
 }
 
 func (c *SQLiteDriverConnection) UnlockAuditLog(ctx context.Context, execCtx plugin.DriverExecutionContext, lock plugin.DriverAuditLock) error {
-	return fmt.Errorf("not implemented")
+	_, err := c.Write.ExecContext(ctx,
+		fmt.Sprintf(
+			`DELETE FROM %s WHERE %s = ?`,
+			sqliteTableName(execCtx, plugin.DriverAuditLockTableName),
+			sqliteQuoteIdent(plugin.DriverAuditLockColumnID.Name),
+		),
+		lock.ID,
+	)
+	return err
 }
 
 func (c *SQLiteDriverConnection) Query(execCtx plugin.DriverExecutionContext) plugin.DriverQuery {
-	return &SQLiteDriverQuery{}
+	return &SQLiteDriverQuery{conn: c}
 }
 
-type SQLiteDriverQuery struct{}
+func sqliteQuoteIdent(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func sqliteTableName(execCtx plugin.DriverExecutionContext, table string) string {
+	// SQLite has no schema support; ignore execCtx.Schema
+	return sqliteQuoteIdent(execCtx.Prefix + table)
+}
+
+func sqliteColumnDefinition(column *plugin.DriverAuditColumn) string {
+	colType := "UNKNOWN"
+	switch column.Type {
+	case plugin.DriverAuditColumnTime:
+		colType = "TEXT"
+	case plugin.DriverAuditColumnString:
+		colType = "TEXT"
+	case plugin.DriverAuditColumnInt64:
+		colType = "INTEGER"
+	case plugin.DriverAuditColumnJSON:
+		colType = "TEXT"
+	}
+
+	constraint := ""
+	if column.PrimaryKey {
+		constraint = " PRIMARY KEY"
+	} else if !column.Nullable {
+		constraint = " NOT NULL"
+	}
+
+	return fmt.Sprintf("%s %s%s", sqliteQuoteIdent(column.Name), colType, constraint)
+}
+
+type SQLiteDriverQuery struct {
+	conn *SQLiteDriverConnection
+	tx   *sql.Tx
+}
 
 func (q *SQLiteDriverQuery) Exec(ctx context.Context, query string, args ...any) error {
-	return fmt.Errorf("not implemented")
+	if q.tx != nil {
+		_, err := q.tx.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to execute query: %w", err)
+		}
+		return nil
+	}
+	_, err := q.conn.Write.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to execute query: %w", err)
+	}
+	return nil
 }
 
 func (q *SQLiteDriverQuery) Query(ctx context.Context, query string, args ...any) (*plugin.DriverQueryResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	var rows *sql.Rows
+	var err error
+	if q.tx != nil {
+		rows, err = q.tx.QueryContext(ctx, query, args...)
+	} else {
+		rows, err = q.conn.Read.QueryContext(ctx, query, args...)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch query: %w", err)
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get columns: %w", err)
+	}
+
+	result := &plugin.DriverQueryResult{
+		AffectedRows: 0,
+		Rows:         make([][]any, 0),
+	}
+	for rows.Next() {
+		values := make([]any, len(cols))
+		valuePtrs := make([]any, len(cols))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("failed to row scan: %w", err)
+		}
+		result.Rows = append(result.Rows, values)
+	}
+
+	return result, nil
 }
 
 func (q *SQLiteDriverQuery) Begin(ctx context.Context) (plugin.DriverQuery, error) {
-	return nil, fmt.Errorf("not implemented")
+	tx, err := q.conn.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	return &SQLiteDriverQuery{conn: q.conn, tx: tx}, nil
 }
 
 func (q *SQLiteDriverQuery) Commit(ctx context.Context) error {
-	return fmt.Errorf("not implemented")
+	if q.tx == nil {
+		return errors.New("no transaction to commit")
+	}
+	if err := q.tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	q.tx = nil
+	return nil
 }
 
 func (q *SQLiteDriverQuery) Rollback(ctx context.Context) error {
-	return fmt.Errorf("not implemented")
+	if q.tx == nil {
+		return errors.New("no transaction to rollback")
+	}
+	if err := q.tx.Rollback(); err != nil {
+		return fmt.Errorf("failed to rollback transaction: %w", err)
+	}
+	q.tx = nil
+	return nil
 }
