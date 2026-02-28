@@ -12,27 +12,36 @@ FerroDB is a database management tool. Focused on explicit, auditable schema mig
 
 - [ ] checksum handling and operation
 - [ ] drivers (in progress)
-- [ ] drivers
 - [ ] documentation
 
 ## Drivers
 
 - [x] PostgreSQL
-- [ ] SQLite (in progress)
-- [ ] MySQL / MariaDB
+- [x] SQLite
+- [ ] MySQL / MariaDB (doing)
 - [ ] DuckDB
 - [ ] Clickhouse
-- [ ] Snowflake
-- [ ] MSSQL (no unless high demand)
-- [ ] Oracle (no unless high demand)
 
 ## Browser Drivers
 
 - [x] PostgreSQL
-- [ ] SQLite
+- [ ] SQLite (doing)
 - [ ] MySQL / MariaDB
 - [ ] DuckDB
 - [ ] Clickhouse
-- [ ] Snowflake
+
+## On hold
+
+Drivers:
+
 - [ ] MSSQL (no unless high demand)
 - [ ] Oracle (no unless high demand)
+
+Browser:
+
+- [ ] MSSQL (no unless high demand)
+- [ ] Oracle (no unless high demand)
+
+## Contributing guide
+
+Ask before.

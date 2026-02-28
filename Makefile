@@ -1,3 +1,7 @@
+.PHONY: test.mysql
+test.mysql:
+	CGO_ENABLED=0 TEST_DRIVER=mysql go test ./...
+
 .PHONY: test.sqlite
 test.sqlite:
 	CGO_ENABLED=0 TEST_DRIVER=sqlite go test ./...
