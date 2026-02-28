@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -76,7 +77,7 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationError()),
 			"checksum": cli.Checksum("create_animals"),
 		},
 	})
@@ -128,7 +129,7 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationError()),
 			"checksum": cli.Checksum("create_animals"),
 		},
 	})
@@ -162,7 +163,7 @@ spec:
   version: "v1"
   run:
     up:
-      sql: CREATE TABLE animals();
+      sql: CREATE TABLE animals(id integer);
     down:
       sql: DROP TABLE animals;
 `,
@@ -175,15 +176,15 @@ spec:
 	audit = cli.Audit("test", "public")
 	audit.AssertCount(5)
 	cli.AssertRun("migrate", "audit", "--driver", "test", "--set", "public", "-f", "long")
-	cli.AssertOutputContains(`
+	cli.AssertOutputContains(fmt.Sprintf(`
           1 2025-11-28 15:40:00 migration.up.started create_animals v1
         ! 2 2025-11-28 15:40:00 migration.up.failed create_animals v1
-            exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)
+            exec: failed to execute query: %s
         ~ 3 2025-11-28 15:40:00 migration.up.fixed create_animals v1
             fixed by adding table name and re-run
           4 2025-11-28 15:40:00 migration.up.started create_animals v1
         + 5 2025-11-28 15:40:00 migration.up.completed create_animals v1
-        `)
+        `, migrationError()))
 }
 
 func TestMigrationsFixDown(t *testing.T) {
@@ -282,7 +283,7 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationError()),
 			"checksum": cli.Checksum("create_animals"),
 		},
 	})
@@ -358,7 +359,7 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error":    `exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)`,
+			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationError()),
 			"checksum": cli.Checksum("create_animals"),
 		},
 	})
@@ -405,15 +406,15 @@ spec:
 	audit = cli.Audit("test", "public")
 	audit.AssertCount(7)
 	cli.AssertRun("migrate", "audit", "--driver", "test", "--set", "public", "-f", "long")
-	cli.AssertOutputContains(`
+	cli.AssertOutputContains(fmt.Sprintf(`
           1 2025-11-28 15:40:00 migration.up.started create_animals v1
         + 2 2025-11-28 15:40:00 migration.up.completed create_animals v1
           3 2025-11-28 15:40:00 migration.down.started create_animals v1
         ! 4 2025-11-28 15:40:00 migration.down.failed create_animals v1
-            exec: failed to execute query: ERROR: syntax error at or near ";" (SQLSTATE 42601)
+            exec: failed to execute query: %s
         ~ 5 2025-11-28 15:40:00 migration.down.fixed create_animals v1
             manually fixed
           6 2025-11-28 15:40:00 migration.down.started   create_animals v1
         - 7 2025-11-28 15:40:00 migration.down.completed create_animals v1
-        `)
+        `, migrationError()))
 }

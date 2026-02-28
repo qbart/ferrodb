@@ -315,6 +315,7 @@ func (m *cliMock) AssertOutputContains(output string) bool {
 		"Output mismatch",
 	)
 	if !val {
+		m.T.Logf("Expected:\n%s", output)
 		m.T.Fatalf("Captured:\n%s", m.stdout.String())
 	}
 	return val
@@ -434,12 +435,44 @@ func (a *assertAudit) Assert(index int, log auditLog) {
 		Metadata:  log.Metadata,
 	}
 
+	// // we need to compare it individual keys for partial match
+	// gotM := got.Metadata
+	// wantM := log.Metadata
+
+    // want.Metadata = map[string]any{}
+	// got.Metadata = map[string]any{}
+
 	if !reflect.DeepEqual(got, want) {
 		a.T.Logf("audit log[%d] is not same", index)
 		a.T.Logf("   got:%v", got)
 		a.T.Logf("  want:%v", want)
 		a.T.FailNow()
 	}
+
+	// if len(gotM) != len(wantM) {
+	// 	a.T.Logf("audit log[%d] metadata is not same", index)
+	// 	a.T.Logf("   got:%v", gotM)
+	// 	a.T.Logf("  want:%v", wantM)
+	// 	a.T.FailNow()
+	// }
+	//
+	// for k := range wantM {
+	// 	fail := false
+	// 	switch wantM[k].(type) {
+	// 	case PartialStringComparator:
+	// 		a := gotM[k].(string)
+	// 		b := wantM[k].(PartialStringComparator).S
+	// 		fail = strings.Index(a, b) == -1
+	//
+	// 	default:
+	// 		fail = !assert.Equal(a.T, gotM[k], wantM[k])
+	// 	}
+	//
+	// 	if fail {
+	// 		a.T.Logf("Invalid metadata")
+	// 		a.T.FailNow()
+	// 	}
+	// }
 }
 
 func (m *cliMock) Data(driver string, set string) *assertData {
@@ -550,6 +583,31 @@ func tableExistsQuery(ctx context.Context, conn plugin.DriverConnection, execCtx
 	}
 }
 
+func migrationError() string {
+	testPluginDriver := os.Getenv("TEST_DRIVER")
+
+	switch testPluginDriver {
+	case "postgresql":
+        return `ERROR: syntax error at or near ";" (SQLSTATE 42601)`
+
+	case "sqlite":
+        return `SQL logic error: near ";": syntax error (1)`
+
+	default:
+		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
+	}
+}
+
 func (c *clockMock) Now() time.Time {
 	return c.Time
+}
+
+type PartialStringComparator struct {
+	S string
+}
+
+func stringLike(s string) PartialStringComparator {
+	return PartialStringComparator{
+		S: s,
+	}
 }
