@@ -1,0 +1,19 @@
+services:
+  pg:
+    image: postgres:16.8
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=ferro
+      - POSTGRES_USER=ferro
+      - POSTGRES_DB=ferro
+
+  mysql:
+    image: mysql
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=ferro
+      - MYSQL_DATABASE=ferro
+      - MYSQL_USER=ferro
+      - MYSQL_PASSWORD=ferro
