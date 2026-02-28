@@ -39,6 +39,11 @@ type showItemMsg struct {
 	autoRun bool
 }
 
+type explainDoneMsg struct {
+	result plugin.BrowserExplainResult
+	err    error
+}
+
 type tickMsg time.Time
 
 type TUI struct {
@@ -163,6 +168,22 @@ func runQueryCmd(opts Options, sql string, start time.Time) tea.Cmd {
 	}
 }
 
+func runExplainCmd(opts Options, data plugin.BrowserQueryResult) tea.Cmd {
+	return func() tea.Msg {
+		browser, err := opts.Registry.GetBrowser(opts.RawDriver)
+		if err != nil {
+			return explainDoneMsg{err: err}
+		}
+		ctx := context.Background()
+		if err := browser.Connect(ctx, opts.RawDSN); err != nil {
+			return explainDoneMsg{err: err}
+		}
+		defer browser.Disconnect(ctx)
+		result, err := browser.ParseExplain(data)
+		return explainDoneMsg{result: result, err: err}
+	}
+}
+
 func tickCmd() tea.Cmd {
 	return tea.Tick(50*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
@@ -260,6 +281,14 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.footer.QueryDone = true
 		t.footer.QueryMs = msg.ms
 		t.content.SetResult(msg.data)
+		return t, nil
+
+	case explainDoneMsg:
+		if msg.err != nil {
+			t.explainView.SetError(msg.err.Error())
+		} else {
+			t.explainView.SetResult(msg.result)
+		}
 		return t, nil
 
 	case loadDataMsg:
@@ -442,24 +471,12 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		case "ctrl+e":
 			data := t.content.ActiveResultData()
-			browser, err := t.opts.Registry.GetBrowser(t.opts.RawDriver)
-			if err != nil {
-				t.explainView.SetError(err.Error())
-				t.navbar.Active = NavExplain
-				return t, nil
-			}
-			result, err := browser.ParseExplain(plugin.BrowserQueryResult{
+			t.navbar.Active = NavExplain
+			return t, runExplainCmd(t.opts, plugin.BrowserQueryResult{
 				Headers:     data.Headers,
 				Rows:        data.Rows,
 				ColumnTypes: data.ColumnTypes,
 			})
-			if err != nil {
-				t.explainView.SetError(err.Error())
-			} else {
-				t.explainView.SetResult(result)
-			}
-			t.navbar.Active = NavExplain
-			return t, nil
 		}
 
 		if t.navbar.Active == NavExplain {
