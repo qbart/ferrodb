@@ -12,6 +12,7 @@ FerroDB is a database management tool. Focused on explicit, auditable schema mig
 
 - [ ] checksum handling and operation
 - [ ] drivers (in progress)
+- [ ] manual audit fixing
 - [ ] documentation
 
 ## Drivers
