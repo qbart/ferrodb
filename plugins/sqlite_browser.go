@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -166,74 +164,133 @@ func (b *SQLiteBrowser) Query(ctx context.Context, query string) (plugin.Browser
 	return plugin.BrowserQueryResult{Headers: cols, Rows: data, ColumnTypes: editorTypes}, nil
 }
 
-// ParseExplain parses the output of EXPLAIN QUERY PLAN.
+// ParseExplain parses the output of SQLite EXPLAIN (VDBE bytecode).
 //
-// SQLite EXPLAIN QUERY PLAN produces four columns: id, parent, notused, detail.
-// This function builds a tree from parent→child relationships and returns it.
+// SQLite EXPLAIN produces 8 columns: addr opcode p1 p2 p3 p4 p5 comment.
+// The result contains:
+//   - A full bytecode table with key opcodes highlighted.
+//   - A cursor access table derived from OpenRead/OpenWrite instructions.
+//   - A root node summarising the key operation counts.
 func (b *SQLiteBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin.BrowserExplainResult, error) {
-	if len(data.Headers) != 4 || len(data.Rows) == 0 {
-		return plugin.BrowserExplainResult{}, fmt.Errorf("query result does not match EXPLAIN QUERY PLAN output")
+	if len(data.Headers) != 8 || len(data.Rows) == 0 {
+		return plugin.BrowserExplainResult{}, fmt.Errorf(
+			"query result does not match SQLite EXPLAIN output (expected columns: addr opcode p1 p2 p3 p4 p5 comment)",
+		)
 	}
 
-	type eqpNode struct {
-		id       int
-		parent   int
-		detail   string
-		children []int
+	type cursorEntry struct {
+		cursor   string
+		access   string
+		name     string
+		rootPage string
 	}
 
-	nodes := make(map[int]*eqpNode)
+	var bytecodeRows []plugin.BrowserExplainRow
+	var cursors []cursorEntry
+	cursorSeen := make(map[string]bool)
+	opcodeCounts := make(map[string]int)
+
 	for _, row := range data.Rows {
-		if len(row) != 4 {
+		if len(row) != 8 {
 			continue
 		}
-		id, _ := strconv.Atoi(row[0])
-		parent, _ := strconv.Atoi(row[1])
-		detail := row[3]
-		nodes[id] = &eqpNode{id: id, parent: parent, detail: detail}
-	}
+		opcode := row[1]
+		opcodeCounts[opcode]++
 
-	// Separate roots (no parent in the result set) from children.
-	var roots []int
-	for id, n := range nodes {
-		if _, parentExists := nodes[n.parent]; !parentExists || n.parent == id {
-			roots = append(roots, id)
-		} else {
-			nodes[n.parent].children = append(nodes[n.parent].children, id)
+		bytecodeRows = append(bytecodeRows, plugin.BrowserExplainRow{
+			Cells:     row,
+			Highlight: sqliteIsKeyOpcode(opcode),
+		})
+
+		// Build cursor access summary from OpenRead / OpenWrite instructions.
+		// VDBE layout: addr opcode p1(cursor) p2(root-page) p3 p4(name) p5 comment
+		if opcode == "OpenRead" || opcode == "OpenWrite" {
+			cursor := row[2]
+			if !cursorSeen[cursor] {
+				cursorSeen[cursor] = true
+				access := "Read"
+				if opcode == "OpenWrite" {
+					access = "Write"
+				}
+				name := row[5] // p4 holds the table/index name
+				if name == "" {
+					name = "?"
+				}
+				cursors = append(cursors, cursorEntry{
+					cursor:   cursor,
+					access:   access,
+					name:     name,
+					rootPage: row[3], // p2
+				})
+			}
 		}
 	}
-	sort.Ints(roots)
 
-	var buildNode func(id int) plugin.BrowserExplainNode
-	buildNode = func(id int) plugin.BrowserExplainNode {
-		n := nodes[id]
-		node := plugin.BrowserExplainNode{Name: n.detail}
-		sort.Ints(n.children)
-		for _, childID := range n.children {
-			node.Children = append(node.Children, buildNode(childID))
+	// Root node: counts of the most interesting opcodes.
+	root := plugin.BrowserExplainNode{Name: "SQLite VDBE"}
+	for _, op := range []string{
+		"OpenRead", "OpenWrite",
+		"Rewind", "Next", "Prev",
+		"SeekRowid", "SeekGE", "SeekGT", "SeekLE", "SeekLT",
+		"IdxGE", "IdxGT", "IdxLE", "IdxLT",
+		"ResultRow",
+	} {
+		if n, ok := opcodeCounts[op]; ok {
+			root.Lines = append(root.Lines, plugin.BrowserExplainLine{
+				Text:      fmt.Sprintf("%-16s %d", op, n),
+				Highlight: strings.HasPrefix(op, "Open") && n > 0,
+			})
 		}
-		return node
 	}
 
-	var rootNode plugin.BrowserExplainNode
-	switch len(roots) {
-	case 0:
-		return plugin.BrowserExplainResult{}, fmt.Errorf("query result does not match EXPLAIN QUERY PLAN output")
-	case 1:
-		rootNode = buildNode(roots[0])
-	default:
-		rootNode = plugin.BrowserExplainNode{Name: "QUERY PLAN"}
-		for _, id := range roots {
-			rootNode.Children = append(rootNode.Children, buildNode(id))
+	summary := []plugin.BrowserExplainLine{
+		{Text: fmt.Sprintf("Instructions: %d", len(bytecodeRows))},
+	}
+
+	// Table 1: full bytecode listing.
+	bytecodeTable := plugin.BrowserExplainTable{
+		Title:   "VDBE Bytecode",
+		Headers: data.Headers,
+		Rows:    bytecodeRows,
+	}
+	tables := []plugin.BrowserExplainTable{bytecodeTable}
+
+	// Table 2: cursor access summary (only when cursors were found).
+	if len(cursors) > 0 {
+		cursorTable := plugin.BrowserExplainTable{
+			Title:   "Cursor Access",
+			Headers: []string{"cursor", "access", "table / index", "root page"},
 		}
+		for _, c := range cursors {
+			cursorTable.Rows = append(cursorTable.Rows, plugin.BrowserExplainRow{
+				Cells:     []string{c.cursor, c.access, c.name, c.rootPage},
+				Highlight: c.access == "Write",
+			})
+		}
+		tables = append(tables, cursorTable)
 	}
 
 	return plugin.BrowserExplainResult{
-		Root: rootNode,
-		SummaryLines: []plugin.BrowserExplainLine{
-			{Text: fmt.Sprintf("Steps: %d", len(nodes))},
-		},
+		Root:         root,
+		SummaryLines: summary,
+		Tables:       tables,
 	}, nil
+}
+
+// sqliteIsKeyOpcode returns true for opcodes that are significant for
+// understanding query execution (cursor opens, scans, seeks, output).
+func sqliteIsKeyOpcode(op string) bool {
+	switch op {
+	case "OpenRead", "OpenWrite", "OpenEphemeral", "OpenAutoindex",
+		"TableLock",
+		"Rewind", "Next", "Prev", "NextIfOpen",
+		"SeekGE", "SeekGT", "SeekLE", "SeekLT", "SeekRowid",
+		"IdxGE", "IdxGT", "IdxLE", "IdxLT",
+		"Found", "NotFound", "NotExists",
+		"ResultRow", "Halt":
+		return true
+	}
+	return false
 }
 
 // --- list helpers ---
@@ -368,7 +425,7 @@ func (b *SQLiteBrowser) listForeignKeys(ctx context.Context, table string) ([]pl
 		if err := rows.Scan(&id, &seq, &refTable, &fromCol, &toCol, &onUpdate, &onDelete, &match); err != nil {
 			return nil, err
 		}
-		itemID := strconv.Itoa(id)
+		itemID := fmt.Sprintf("%d", id)
 		label := fmt.Sprintf("%s → %s(%s)", fromCol, refTable, toCol)
 		items = append(items, plugin.BrowserItem{ID: itemID, Name: label, HasChildren: false})
 	}
