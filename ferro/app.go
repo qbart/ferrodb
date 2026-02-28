@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/qbart/ferrodb/ferro/config"
 	"github.com/qbart/ferrodb/ferro/run"
@@ -199,7 +200,7 @@ func (a *App) Run(args []string) int {
 						"%s %3d %s %s %s %s",
 						sign,
 						log.ID,
-						log.AppliedAt.Format("2006-01-02 15:04:05"),
+						log.AppliedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 						event,
 						log.GetData("migration"),
 						log.GetData("version"),

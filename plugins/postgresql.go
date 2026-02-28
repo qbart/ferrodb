@@ -101,7 +101,7 @@ func (c *PostgreSQLDriverConnection) AppendAuditLog(ctx context.Context, execCtx
 	sql := `INSERT INTO %s (%s) VALUES (@id, @applied_at, @event, @data, @metadata)`
 	values := pgx.NamedArgs{
 		"id":         log.ID,
-		"applied_at": log.AppliedAt,
+		"applied_at": log.AppliedAt.UTC(),
 		"event":      log.Event,
 		"data":       log.Data,
 		"metadata":   log.Metadata,
@@ -155,7 +155,7 @@ func (c *PostgreSQLDriverConnection) ReadAuditLogs(ctx context.Context, execCtx 
 func (c *PostgreSQLDriverConnection) LockAuditLog(ctx context.Context, execCtx plugin.DriverExecutionContext, lock plugin.DriverAuditLock) error {
 	values := pgx.NamedArgs{
 		"id":        lock.ID,
-		"locked_at": lock.LockedAt,
+		"locked_at": lock.LockedAt.UTC(),
 		"locked_by": lock.LockedBy,
 		"data":      lock.Data,
 	}

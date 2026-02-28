@@ -166,7 +166,7 @@ func (c *SQLiteDriverConnection) AppendAuditLog(ctx context.Context, execCtx plu
 	)
 	_, err = c.Write.ExecContext(ctx, query,
 		log.ID,
-		log.AppliedAt.Format(time.RFC3339Nano),
+		log.AppliedAt.UTC().Format(time.RFC3339Nano),
 		log.Event,
 		string(data),
 		metadataArg,
@@ -201,7 +201,7 @@ func (c *SQLiteDriverConnection) ReadAuditLogs(ctx context.Context, execCtx plug
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 
-		entry.AppliedAt, err = time.Parse(time.RFC3339Nano, appliedAt)
+		entry.AppliedAt, err = time.ParseInLocation(time.RFC3339Nano, appliedAt, time.UTC)
 		if err != nil {
 			return nil, fmt.Errorf("parse time: %w", err)
 		}
@@ -237,7 +237,7 @@ func (c *SQLiteDriverConnection) LockAuditLog(ctx context.Context, execCtx plugi
 	)
 	_, err = c.Write.ExecContext(ctx, query,
 		lock.ID,
-		lock.LockedAt.Format(time.RFC3339Nano),
+		lock.LockedAt.UTC().Format(time.RFC3339Nano),
 		lock.LockedBy,
 		string(data),
 	)
