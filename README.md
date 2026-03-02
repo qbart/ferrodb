@@ -1,6 +1,6 @@
 # FerroDB
 
-FerroDB is a database management tool. Focused on explicit, auditable schema migrations with built in terminal browser.
+FerroDB is a database management tool. Focused on explicit, auditable schema migrations with built-in terminal browser.
 
 <img src="./res/ferrodb.svg" width="64" />
 
@@ -19,7 +19,8 @@ FerroDB is a database management tool. Focused on explicit, auditable schema mig
 
 - [x] PostgreSQL
 - [x] SQLite
-- [ ] MySQL / MariaDB (doing)
+- [x] MySQL
+- [ ] MariaDB
 - [ ] DuckDB
 - [ ] Clickhouse
 
@@ -27,7 +28,8 @@ FerroDB is a database management tool. Focused on explicit, auditable schema mig
 
 - [x] PostgreSQL
 - [x] SQLite
-- [ ] MySQL / MariaDB (doing)
+- [ ] MySQL (todo EXPLAIN visualizer)
+- [ ] MariaDB
 - [ ] DuckDB
 - [ ] Clickhouse
 
