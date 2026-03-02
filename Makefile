@@ -18,6 +18,9 @@ ui:
 build:
 	@mkdir -p bin/
 	@CGO_ENABLED=0 go build -o bin/ferro main.go
+
+.PHONY: install
+install: build
 	@cp bin/ferro ${HOME}/bin/ferro || echo "Failed to copy to ~/bin"
 
 .PHONY: changelog

@@ -54,7 +54,9 @@ func (r *Registry) RegisterAll() {
 	r.Register("sqlite", NewSQLiteDriver())
 	r.Register("testcontainer/postgresql", testcontainers.NewTestContainerPostgreSQLDriver())
 	r.Register("postgresql", NewPostgreSQLDriver())
+	r.Register("mysql", NewMySQLDriver())
 
 	r.RegisterBrowser("postgresql", NewPostgreSQLBrowser(NewPostgreSQLDriver()))
 	r.RegisterBrowser("sqlite", NewSQLiteBrowser(NewSQLiteDriver()))
+	r.RegisterBrowser("mysql", NewMySQLBrowser(NewMySQLDriver()))
 }

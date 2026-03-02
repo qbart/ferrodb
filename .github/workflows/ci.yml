@@ -10,6 +10,7 @@ jobs:
         driver:
           - postgresql
           - sqlite
+          - mysql
 
     runs-on: ubuntu-latest
     services:
