@@ -118,6 +118,8 @@ func (c *cliMock) RandomDatabase() func() {
 		return c.RandomSQLiteDatabase()
 	case "mysql":
 		return c.RandomMySQLDatabase()
+	case "duckdb":
+		return c.RandomDuckDBDatabase()
 	default:
 		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
@@ -262,6 +264,41 @@ spec:
   config:
     dsn: root:test@tcp(localhost:3307)/%s
         `, dbID),
+	)
+
+	return dbTeardown
+}
+
+func (c *cliMock) RandomDuckDBDatabase() func() {
+	dbID := fmt.Sprintf("test_%s.duckdb", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	os.MkdirAll("tmp", 0755)
+	path := filepath.Join("tmp", dbID)
+	ctx := context.Background()
+
+	driver := plugins.NewDuckDBDriver()
+	err := driver.CreateDatabase(ctx, path)
+	if err != nil {
+		c.T.Fatalf("failed to create database %v", err)
+	}
+
+	dbTeardown := func() {
+		err := os.Remove(path)
+		if err != nil {
+			c.T.Fatalf("failed to remove database %v", err)
+		}
+	}
+	c.Files(
+		"config.fyml",
+		fmt.Sprintf(`
+apiVersion: drivers/v1
+kind: Driver
+metadata:
+  name: test
+spec:
+  driver: duckdb
+  config:
+    path: %s
+        `, path),
 	)
 
 	return dbTeardown
@@ -640,6 +677,20 @@ func tableExistsQuery(ctx context.Context, conn plugin.DriverConnection, execCtx
     ) THEN 1 ELSE 0 END;`
 		return conn.Query(execCtx).Query(ctx, q, execCtx.Prefix+name)
 
+	case "duckdb":
+		q := `
+    SELECT CASE WHEN EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = COALESCE(NULLIF($1, ''), 'main')
+        AND table_name = $2
+    ) THEN 1::bigint ELSE 0::bigint END;`
+		schema := execCtx.Schema
+		if schema == "" {
+			schema = "main"
+		}
+		return conn.Query(execCtx).Query(ctx, q, schema, execCtx.Prefix+name)
+
 	default:
 		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
@@ -657,6 +708,9 @@ func migrationError() string {
 
 	case "mysql":
 		return `Error 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1`
+
+	case "duckdb":
+		return `Parser Error: syntax error at or near ";"`
 
 	default:
 		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))

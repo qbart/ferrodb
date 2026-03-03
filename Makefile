@@ -1,3 +1,7 @@
+.PHONY: test.duckdb
+test.duckdb:
+	CGO_ENABLED=1 TEST_DRIVER=duckdb go test ./...
+
 .PHONY: test.mysql
 test.mysql:
 	CGO_ENABLED=0 TEST_DRIVER=mysql go test ./...
