@@ -16,7 +16,7 @@ test.pg:
 
 .PHONY: ui
 ui:
-	CGO_ENABLED=0 go run main.go ui --raw postgresql:postgres://athena:athena@localhost:5432/athena
+	CGO_ENABLED=0 go run main.go ui --raw "mysql:root:test@tcp(localhost:3307)/test"
 
 .PHONY: build
 build:

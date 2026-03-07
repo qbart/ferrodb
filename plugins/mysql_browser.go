@@ -169,7 +169,41 @@ func (b *MySQLBrowser) Query(ctx context.Context, query string) (plugin.BrowserQ
 	return plugin.BrowserQueryResult{Headers: cols, Rows: data, ColumnTypes: editorTypes}, nil
 }
 
-// mysqlExplain* types model the MySQL EXPLAIN FORMAT=JSON output.
+// mysqlExplainV2* types model the MySQL 8.0.32+ EXPLAIN FORMAT=JSON (json_schema_version 2.0) output.
+
+type mysqlExplainV2Result struct {
+	Query             string              `json:"query"`
+	QueryType         string              `json:"query_type"`
+	QueryPlan         *mysqlExplainV2Node `json:"query_plan,omitempty"`
+	JSONSchemaVersion string              `json:"json_schema_version"`
+}
+
+type mysqlExplainV2Node struct {
+	Operation        string               `json:"operation,omitempty"`
+	TableName        string               `json:"table_name,omitempty"`
+	SchemaName       string               `json:"schema_name,omitempty"`
+	Alias            string               `json:"alias,omitempty"`
+	AccessType       string               `json:"access_type,omitempty"`
+	IndexAccessType  string               `json:"index_access_type,omitempty"`
+	IndexName        string               `json:"index_name,omitempty"`
+	KeyColumns       []string             `json:"key_columns,omitempty"`
+	UsedColumns      []string             `json:"used_columns,omitempty"`
+	Covering         bool                 `json:"covering,omitempty"`
+	EstimatedRows    float64              `json:"estimated_rows,omitempty"`
+	ActualRows       float64              `json:"actual_rows,omitempty"`
+	EstimatedTotalCost float64            `json:"estimated_total_cost,omitempty"`
+	ActualLoops      int                  `json:"actual_loops,omitempty"`
+	ActualFirstRowMs float64              `json:"actual_first_row_ms,omitempty"`
+	ActualLastRowMs  float64              `json:"actual_last_row_ms,omitempty"`
+	LookupCondition  string               `json:"lookup_condition,omitempty"`
+	LookupReferences []string             `json:"lookup_references,omitempty"`
+	FilterCondition  string               `json:"filter_condition,omitempty"`
+	SortType         string               `json:"sort_type,omitempty"`
+	UsingTemporaryTable bool              `json:"using_temporary_table,omitempty"`
+	Inputs           []mysqlExplainV2Node `json:"inputs,omitempty"`
+}
+
+// mysqlExplain* types model the old MySQL EXPLAIN FORMAT=JSON output.
 
 type mysqlExplainResult struct {
 	QueryBlock mysqlExplainQueryBlock `json:"query_block"`
@@ -250,11 +284,175 @@ func (b *MySQLBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin.Brow
 			sb.WriteString(row[0])
 		}
 	}
-	var raw mysqlExplainResult
-	if err := json.Unmarshal([]byte(sb.String()), &raw); err != nil {
-		return plugin.BrowserExplainResult{}, fmt.Errorf("query result does not match the explain output\n%s", err.Error())
+	raw := sb.String()
+
+	// Try v2 format first (MySQL 8.0.32+, json_schema_version 2.0)
+	var v2 mysqlExplainV2Result
+	if err := json.Unmarshal([]byte(raw), &v2); err == nil && v2.JSONSchemaVersion != "" {
+		return mysqlParseExplainV2(v2), nil
 	}
 
+	// Fall back to old format
+	var old mysqlExplainResult
+	if err := json.Unmarshal([]byte(raw), &old); err != nil {
+		return plugin.BrowserExplainResult{}, fmt.Errorf("query result does not match the explain output\n%s", err.Error())
+	}
+	return mysqlParseExplainV1(old), nil
+}
+
+func mysqlParseExplainV2(v2 mysqlExplainV2Result) plugin.BrowserExplainResult {
+	var summary []plugin.BrowserExplainLine
+	if v2.QueryType != "" {
+		summary = append(summary, plugin.BrowserExplainLine{Text: "Query Type: " + v2.QueryType})
+	}
+
+	if v2.QueryPlan == nil {
+		return plugin.BrowserExplainResult{
+			Root:         plugin.BrowserExplainNode{Name: "Query Block"},
+			SummaryLines: summary,
+		}
+	}
+
+	// Collect all leaf nodes for per-table stats
+	var leaves []mysqlExplainV2Node
+	mysqlV2CollectLeaves(*v2.QueryPlan, &leaves)
+
+	var tables []plugin.BrowserExplainTable
+	if len(leaves) > 0 {
+		table := plugin.BrowserExplainTable{
+			Title:   "Per table stats",
+			Headers: []string{"table", "access", "index", "est. rows", "actual rows", "cost"},
+		}
+		for _, n := range leaves {
+			highlight := n.AccessType == "ALL"
+			table.Rows = append(table.Rows, plugin.BrowserExplainRow{
+				Cells: []string{
+					n.TableName,
+					n.AccessType,
+					n.IndexName,
+					fmt.Sprintf("%.0f", n.EstimatedRows),
+					fmt.Sprintf("%.0f", n.ActualRows),
+					fmt.Sprintf("%.2f", n.EstimatedTotalCost),
+				},
+				Highlight: highlight,
+			})
+		}
+		tables = append(tables, table)
+	}
+
+	return plugin.BrowserExplainResult{
+		Root:         mysqlV2NodeToExplainNode(*v2.QueryPlan),
+		SummaryLines: summary,
+		Tables:       tables,
+	}
+}
+
+func mysqlV2CollectLeaves(node mysqlExplainV2Node, out *[]mysqlExplainV2Node) {
+	if node.TableName != "" {
+		*out = append(*out, node)
+	}
+	for _, child := range node.Inputs {
+		mysqlV2CollectLeaves(child, out)
+	}
+}
+
+func mysqlV2NodeToExplainNode(node mysqlExplainV2Node) plugin.BrowserExplainNode {
+	name := node.Operation
+	if name == "" {
+		name = node.AccessType
+		if node.TableName != "" {
+			name += " on " + node.TableName
+		}
+	}
+
+	n := plugin.BrowserExplainNode{Name: name}
+
+	// Table info
+	if node.TableName != "" && node.SchemaName != "" {
+		text := node.SchemaName + "." + node.TableName
+		if node.Alias != "" && node.Alias != node.TableName {
+			text += " (" + node.Alias + ")"
+		}
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: "table: " + text})
+	}
+
+	// Index info
+	if node.IndexName != "" {
+		keyInfo := "index: " + node.IndexName
+		if len(node.KeyColumns) > 0 {
+			keyInfo += " (" + strings.Join(node.KeyColumns, ", ") + ")"
+		}
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: keyInfo})
+	}
+
+	// Lookup / filter condition
+	if node.LookupCondition != "" {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: "lookup: " + node.LookupCondition})
+	}
+	if node.FilterCondition != "" {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: "filter: " + node.FilterCondition, Highlight: true})
+	}
+
+	// Row estimates
+	n.Lines = append(n.Lines, plugin.BrowserExplainLine{
+		Text: fmt.Sprintf("estimated rows %.0f  cost %.2f", node.EstimatedRows, node.EstimatedTotalCost),
+	})
+
+	// Actual timing
+	hasActual := node.ActualRows > 0 || node.ActualLoops > 0
+	if hasActual {
+		highlight := node.ActualRows > node.EstimatedRows*10
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{
+			Text: fmt.Sprintf("actual rows %.0f  loops %d", node.ActualRows, node.ActualLoops),
+			Highlight: highlight,
+		})
+	}
+	if node.ActualFirstRowMs > 0 || node.ActualLastRowMs > 0 {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{
+			Text: fmt.Sprintf("first row %.3fms  last row %.3fms", node.ActualFirstRowMs, node.ActualLastRowMs),
+		})
+	}
+
+	// Estimation accuracy
+	if hasActual && node.EstimatedRows > 0 {
+		ratio := node.ActualRows / node.EstimatedRows
+		highlight := ratio > 10 || ratio < 0.1
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{
+			Text:      fmt.Sprintf("est ratio %.2fx", ratio),
+			Highlight: highlight,
+		})
+	}
+
+	// Covering index
+	if node.Covering {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: "using index (covering)"})
+	}
+
+	// Sort info
+	if node.SortType != "" {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: "sort: " + node.SortType})
+	}
+
+	// Temporary table
+	if node.UsingTemporaryTable {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{Text: "using temporary table", Highlight: true})
+	}
+
+	// Full table scan warning
+	if node.AccessType == "ALL" {
+		n.Lines = append(n.Lines, plugin.BrowserExplainLine{
+			Text:      "full table scan",
+			Highlight: true,
+		})
+	}
+
+	for _, child := range node.Inputs {
+		n.Children = append(n.Children, mysqlV2NodeToExplainNode(child))
+	}
+	return n
+}
+
+func mysqlParseExplainV1(raw mysqlExplainResult) plugin.BrowserExplainResult {
 	qb := raw.QueryBlock
 
 	var summary []plugin.BrowserExplainLine
@@ -296,7 +494,7 @@ func (b *MySQLBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin.Brow
 		Root:         mysqlBuildExplainTree(qb),
 		SummaryLines: summary,
 		Tables:       []plugin.BrowserExplainTable{table},
-	}, nil
+	}
 }
 
 func mysqlCollectTables(qb mysqlExplainQueryBlock) []mysqlExplainTableInfo {

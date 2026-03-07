@@ -27,7 +27,7 @@ FerroDB is a database management tool. Focused on explicit, auditable schema mig
 
 - [x] PostgreSQL
 - [x] SQLite
-- [ ] MySQL / MariaDB (todo EXPLAIN visualizer)
+- [x] MySQL / MariaDB
 - [ ] DuckDB
 - [ ] Clickhouse
 
