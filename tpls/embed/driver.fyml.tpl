@@ -3,10 +3,6 @@ kind: Driver
 metadata:
   name: test
 spec:
-  driver: testcontainer/postgresql
+  driver: postgresql
   config:
-    version: 16.8
-    user: test
-    password: test
-    db: test
-    port: 5432
+    dsn: postgres://test:test@localhost:5432/test
