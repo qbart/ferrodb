@@ -398,7 +398,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return t, tea.Quit
-		case "tab":
+		case "tab", "ctrl+j":
 			switch t.focus {
 			case FocusTree:
 				t.focus = FocusEditor
@@ -425,7 +425,7 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					t.content.Focus()
 				}
 			}
-		case "shift+tab":
+		case "shift+tab", "ctrl+k":
 			switch t.focus {
 			case FocusTree:
 				if t.content.HasResults() {
@@ -636,7 +636,7 @@ func (t TUI) View() string {
 		main = lipgloss.JoinHorizontal(lipgloss.Top, nav, content)
 	}
 
-	footerLabel := ""
+	footerLabel := "F1 - help"
 	if t.searchActive {
 		footerLabel = "/" + t.searchQuery + "█"
 	} else if len(t.searchMatches) > 0 && t.focus == FocusResults {

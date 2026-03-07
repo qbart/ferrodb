@@ -14,7 +14,7 @@ var shortcuts = []struct {
 	{section: "Global"},
 	{"F1", "Toggle help", ""},
 	{"Ctrl+c", "Quit", ""},
-	{"Tab / Shift+Tab", "Cycle focus", ""},
+	{"Tab / Shift+Tab / Ctrl+j / Ctrl+k", "Cycle focus", ""},
 	{"Ctrl+\\", "Toggle sidebar", ""},
 	{"Ctrl+g", "Toggle Data / Explain (runs explain)", ""},
 	{"Ctrl+t", "New tab", ""},

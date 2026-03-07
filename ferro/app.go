@@ -326,21 +326,60 @@ func (a *App) Run(args []string) int {
 	}
 
 	uiCmd := &cli.Command{
-		Name:  "ui",
-		Usage: "Launch interactive terminal UI",
+		Name:      "ui",
+		Usage:     "Launch interactive terminal UI",
+		UsageText: "ferro ui <driver-name>\nferro ui --raw 'drivername:dsn'",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "raw", Usage: "Raw connection string in 'drivername:dsn' format", Required: false},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			raw := cmd.String("raw")
+			name := cmd.Args().First()
+
+			if raw != "" && name != "" {
+				return fmt.Errorf("cannot use both --raw and a named driver; pick one")
+			}
+
+			if raw == "" && name == "" {
+				fmt.Fprintln(cmd.Root().Writer, "Usage:")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui <driver-name>        Connect using a named driver from ferro config")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'driver:dsn'   Connect using a raw connection string")
+				fmt.Fprintln(cmd.Root().Writer, "")
+				fmt.Fprintln(cmd.Root().Writer, "Examples:")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui local-pg")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'postgresql:postgres://user:pass@localhost:5432/mydb'")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'sqlite:/path/to/db.sqlite'")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'mysql:user:pass@tcp(localhost:3306)/mydb'")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'mariadb:user:pass@tcp(localhost:3306)/mydb'")
+				return nil
+			}
+
 			opts := ui.Options{Registry: registry, Version: cmd.Root().Version}
-			if raw := cmd.String("raw"); raw != "" {
+
+			if raw != "" {
 				i := strings.IndexByte(raw, ':')
 				if i < 0 {
 					return fmt.Errorf("--raw: invalid format, expected 'drivername:dsn'")
 				}
 				opts.RawDriver = raw[:i]
 				opts.RawDSN = raw[i+1:]
+			} else {
+				cfg, err := runner.UseConfig()
+				if err != nil {
+					return err
+				}
+				driver, ok := cfg.Drivers[name]
+				if !ok {
+					return fmt.Errorf("driver %q not found in ferro config", name)
+				}
+				dsn := driver.Spec.Config.String("dsn")
+				if dsn == "" {
+					return fmt.Errorf("driver %q has no dsn configured", name)
+				}
+				opts.RawDriver = driver.Spec.Driver
+				opts.RawDSN = dsn
 			}
+
 			return ui.Run(ctx, opts)
 		},
 	}
