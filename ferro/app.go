@@ -374,7 +374,10 @@ func (a *App) Run(args []string) int {
 				}
 				dsn := driver.Spec.Config.String("dsn")
 				if dsn == "" {
-					return fmt.Errorf("driver %q has no dsn configured", name)
+					dsn = driver.Spec.Config.String("path")
+				}
+				if dsn == "" {
+					return fmt.Errorf("driver %q has no dsn or path configured", name)
 				}
 				opts.RawDriver = driver.Spec.Driver
 				opts.RawDSN = dsn
