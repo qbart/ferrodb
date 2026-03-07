@@ -95,6 +95,29 @@ func (r Results) HasData() bool {
 	return len(r.data.Headers) > 0
 }
 
+func (r Results) Search(query string) []int {
+	if query == "" {
+		return nil
+	}
+	q := strings.ToLower(query)
+	var matches []int
+	for i, row := range r.data.Rows {
+		for _, cell := range row {
+			if strings.Contains(strings.ToLower(cell), q) {
+				matches = append(matches, i)
+				break
+			}
+		}
+	}
+	return matches
+}
+
+func (r *Results) GoToRow(row int) {
+	if row >= 0 && row < len(r.data.Rows) {
+		r.cursor = row
+	}
+}
+
 func (r Results) CurrentRow() (headers []string, values []string, ok bool) {
 	if r.cursor < 0 || r.cursor >= len(r.data.Rows) {
 		return nil, nil, false

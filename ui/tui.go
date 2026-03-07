@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -60,6 +61,11 @@ type TUI struct {
 	rowDetail   RowDetail
 	explainView ExplainView
 	footer      Footer
+	// row search state
+	searchActive  bool
+	searchQuery   string
+	searchMatches []int
+	searchIdx     int
 }
 
 func New(opts Options) TUI {
@@ -341,6 +347,31 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		}
 
+		if t.searchActive {
+			switch msg.String() {
+			case "esc":
+				t.searchActive = false
+			case "enter":
+				t.searchActive = false
+				// jump to first match
+				t.searchMatches = t.content.SearchResults(t.searchQuery)
+				if len(t.searchMatches) > 0 {
+					t.searchIdx = 0
+					t.content.ResultsGoToRow(t.searchMatches[0])
+					t.content.ResultsEnsureVisible(t.resultsDataHeight())
+				}
+			case "backspace":
+				if len(t.searchQuery) > 0 {
+					t.searchQuery = t.searchQuery[:len(t.searchQuery)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					t.searchQuery += msg.String()
+				}
+			}
+			return t, nil
+		}
+
 		if t.rowDetail.Visible {
 			switch msg.String() {
 			case "esc", "enter", "ctrl+c":
@@ -505,6 +536,23 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if headers, values, ok := t.content.CurrentRow(); ok {
 					t.rowDetail.Open(headers, values)
 				}
+			case "/":
+				t.searchActive = true
+				t.searchQuery = ""
+				t.searchMatches = nil
+				t.searchIdx = 0
+			case "n":
+				if len(t.searchMatches) > 0 {
+					t.searchIdx = (t.searchIdx + 1) % len(t.searchMatches)
+					t.content.ResultsGoToRow(t.searchMatches[t.searchIdx])
+					t.content.ResultsEnsureVisible(t.resultsDataHeight())
+				}
+			case "N":
+				if len(t.searchMatches) > 0 {
+					t.searchIdx = (t.searchIdx - 1 + len(t.searchMatches)) % len(t.searchMatches)
+					t.content.ResultsGoToRow(t.searchMatches[t.searchIdx])
+					t.content.ResultsEnsureVisible(t.resultsDataHeight())
+				}
 			}
 			return t, nil
 		}
@@ -587,7 +635,11 @@ func (t TUI) View() string {
 	}
 
 	footerLabel := ""
-	if t.navbar.Active == NavExplain {
+	if t.searchActive {
+		footerLabel = "/" + t.searchQuery + "█"
+	} else if len(t.searchMatches) > 0 && t.focus == FocusResults {
+		footerLabel = fmt.Sprintf("/%s  [%d/%d]", t.searchQuery, t.searchIdx+1, len(t.searchMatches))
+	} else if t.navbar.Active == NavExplain {
 		footerLabel = "↑ ↓  j k  scroll    ctrl+g  switch view"
 	} else if t.focus == FocusTree {
 		if labels, ok := t.sidebar.Tree.CursorPath(); ok {

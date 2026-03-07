@@ -209,6 +209,19 @@ func (c *Content) SetResult(data ResultData) {
 	}
 }
 
+func (c Content) SearchResults(query string) []int {
+	if c.Tabs.Active < len(c.results) {
+		return c.results[c.Tabs.Active].Search(query)
+	}
+	return nil
+}
+
+func (c *Content) ResultsGoToRow(row int) {
+	if c.Tabs.Active < len(c.results) {
+		c.results[c.Tabs.Active].GoToRow(row)
+	}
+}
+
 func (c *Content) CloseTab() {
 	if len(c.Tabs.Items) <= 1 {
 		return

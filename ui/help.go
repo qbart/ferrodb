@@ -26,13 +26,15 @@ var shortcuts = []struct {
 	{section: "Tree"},
 	{"↓ ↑ / j k", "Navigate", ""},
 	{"→ / l", "Expand / load", ""},
-	{"← / h", "Collapse parent", ""},
+	{"← / h", "Collapse (self first, then parent)", ""},
 	{"Enter", "Open & run query", ""},
 	{"Shift+r", "Reload tree", ""},
 	{section: "Results"},
 	{"↓ ↑ / j k", "Move row cursor", ""},
 	{"← → / h l", "Scroll columns", ""},
 	{"Enter", "View row detail", ""},
+	{"/", "Search rows", ""},
+	{"n / N", "Next / previous match", ""},
 }
 
 type Help struct {
