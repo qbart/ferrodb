@@ -462,7 +462,17 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return t, nil
 		case "ctrl+g":
-			t.navbar.Next()
+			if t.navbar.Active == NavExplain {
+				t.navbar.Active = NavDatabase
+			} else {
+				data := t.content.ActiveResultData()
+				t.navbar.Active = NavExplain
+				return t, runExplainCmd(t.opts, plugin.BrowserQueryResult{
+					Headers:     data.Headers,
+					Rows:        data.Rows,
+					ColumnTypes: data.ColumnTypes,
+				})
+			}
 			return t, nil
 		case "ctrl+t":
 			t.content.AddTab()
@@ -500,14 +510,6 @@ func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				ClipboardWriteString(text)
 			}
 			return t, nil
-		case "ctrl+e":
-			data := t.content.ActiveResultData()
-			t.navbar.Active = NavExplain
-			return t, runExplainCmd(t.opts, plugin.BrowserQueryResult{
-				Headers:     data.Headers,
-				Rows:        data.Rows,
-				ColumnTypes: data.ColumnTypes,
-			})
 		}
 
 		if t.navbar.Active == NavExplain {
