@@ -163,25 +163,30 @@ func (b *ClickHouseBrowser) Query(ctx context.Context, query string) (plugin.Bro
 
 // chExplain types model the ClickHouse EXPLAIN json = 1 output.
 
+type chExplainResult struct {
+	Plan chExplainPlan `json:"Plan"`
+}
+
 type chExplainPlan struct {
-	NodeType          string          `json:"Node Type"`
-	Description       string          `json:"Description,omitempty"`
-	Header            []string        `json:"Header,omitempty"`
-	ReadType          string          `json:"Read Type,omitempty"`
-	Database          string          `json:"Database,omitempty"`
-	Table             string          `json:"Table,omitempty"`
-	ReadingFromPart   string          `json:"Reading from Part,omitempty"`
-	ReadRows          any             `json:"Read Rows,omitempty"`
-	ReadBytes         any             `json:"Read Bytes,omitempty"`
-	Expression        string          `json:"Expression,omitempty"`
-	Actions           string          `json:"Actions,omitempty"`
-	Positions         []int           `json:"Positions,omitempty"`
-	FilterColumn      string          `json:"Filter Column,omitempty"`
-	Parts             any             `json:"Parts,omitempty"`
-	Granules          any             `json:"Granules,omitempty"`
-	Indexes           []chExplainIdx  `json:"Indexes,omitempty"`
-	SortingKey        string          `json:"Sorting Key,omitempty"`
-	Plans             []chExplainPlan `json:"Plans,omitempty"`
+	NodeType        string          `json:"Node Type"`
+	NodeID          string          `json:"Node Id,omitempty"`
+	Description     string          `json:"Description,omitempty"`
+	Header          []string        `json:"Header,omitempty"`
+	ReadType        string          `json:"Read Type,omitempty"`
+	Database        string          `json:"Database,omitempty"`
+	Table           string          `json:"Table,omitempty"`
+	ReadingFromPart string          `json:"Reading from Part,omitempty"`
+	ReadRows        any             `json:"Read Rows,omitempty"`
+	ReadBytes       any             `json:"Read Bytes,omitempty"`
+	Expression      string          `json:"Expression,omitempty"`
+	Actions         string          `json:"Actions,omitempty"`
+	Positions       []int           `json:"Positions,omitempty"`
+	FilterColumn    string          `json:"Filter Column,omitempty"`
+	Parts           any             `json:"Parts,omitempty"`
+	Granules        any             `json:"Granules,omitempty"`
+	Indexes         []chExplainIdx  `json:"Indexes,omitempty"`
+	SortingKey      string          `json:"Sorting Key,omitempty"`
+	Plans           []chExplainPlan `json:"Plans,omitempty"`
 }
 
 type chExplainIdx struct {
@@ -211,16 +216,16 @@ func (b *ClickHouseBrowser) ParseExplain(data plugin.BrowserQueryResult) (plugin
 	}
 	raw := strings.TrimSpace(sb.String())
 
-	// Try JSON format first (EXPLAIN json = 1)
+	// Try [{"Plan": {...}}] format (EXPLAIN json = 1)
+	var results []chExplainResult
+	if err := json.Unmarshal([]byte(raw), &results); err == nil && len(results) > 0 && results[0].Plan.NodeType != "" {
+		return chParseExplainJSON(results[0].Plan), nil
+	}
+
+	// Try bare plan object
 	var plan chExplainPlan
 	if err := json.Unmarshal([]byte(raw), &plan); err == nil && plan.NodeType != "" {
 		return chParseExplainJSON(plan), nil
-	}
-
-	// Try array of plans
-	var plans []chExplainPlan
-	if err := json.Unmarshal([]byte(raw), &plans); err == nil && len(plans) > 0 {
-		return chParseExplainJSON(plans[0]), nil
 	}
 
 	// Fall back to text-based EXPLAIN
