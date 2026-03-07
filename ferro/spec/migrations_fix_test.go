@@ -283,7 +283,7 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationError()),
+			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationDownError()),
 			"checksum": cli.Checksum("create_animals"),
 		},
 	})
@@ -359,7 +359,7 @@ spec:
 			"version":   "v1",
 		},
 		Metadata: map[string]any{
-			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationError()),
+			"error":    fmt.Sprintf(`exec: failed to execute query: %s`, migrationDownError()),
 			"checksum": cli.Checksum("create_animals"),
 		},
 	})
@@ -416,5 +416,5 @@ spec:
             manually fixed
           6 2025-11-28 15:40:00 migration.down.started   create_animals v1
         - 7 2025-11-28 15:40:00 migration.down.completed create_animals v1
-        `, migrationError()))
+        `, migrationDownError()))
 }

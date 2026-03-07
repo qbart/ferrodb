@@ -56,9 +56,11 @@ func (r *Registry) RegisterAll() {
 	r.Register("sqlite", NewSQLiteDriver())
 	r.Register("mysql", NewMySQLDriver())
 	r.Register("mariadb", NewMySQLDriver())
+	r.Register("clickhouse", NewClickHouseDriver())
 
 	r.RegisterBrowser("postgresql", NewPostgreSQLBrowser(NewPostgreSQLDriver()))
 	r.RegisterBrowser("sqlite", NewSQLiteBrowser(NewSQLiteDriver()))
 	r.RegisterBrowser("mysql", NewMySQLBrowser(NewMySQLDriver()))
 	r.RegisterBrowser("mariadb", NewMySQLBrowser(NewMySQLDriver()))
+	r.RegisterBrowser("clickhouse", NewClickHouseBrowser(NewClickHouseDriver()))
 }

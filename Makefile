@@ -1,3 +1,7 @@
+.PHONY: test.clickhouse
+test.clickhouse:
+	CGO_ENABLED=0 TEST_DRIVER=clickhouse go test ./...
+
 .PHONY: test.mariadb
 test.mariadb:
 	CGO_ENABLED=0 TEST_DRIVER=mariadb go test ./...

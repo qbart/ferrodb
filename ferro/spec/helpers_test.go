@@ -120,6 +120,8 @@ func (c *cliMock) RandomDatabase() func() {
 		return c.RandomMySQLDatabase()
 	case "mariadb":
 		return c.RandomMySQLDatabase()
+	case "clickhouse":
+		return c.RandomClickHouseDatabase()
 	default:
 		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
@@ -313,6 +315,56 @@ spec:
   driver: mysql
   config:
     dsn: root:test@tcp(localhost:3307)/%s
+        `, dbID),
+	)
+
+	return dbTeardown
+}
+
+func (c *cliMock) RandomClickHouseDatabase() func() {
+	dbID := fmt.Sprintf("test_%s", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	ctx := context.Background()
+
+	driver := plugins.NewClickHouseDriver()
+	conn, err := driver.Connect(ctx, config.DriverConfig{
+		"dsn": "clickhouse://test:test@localhost:9001/test",
+	})
+	if err != nil {
+		c.T.Fatalf("failed to connect to test database: %v", err)
+	}
+	defer driver.Disconnect(ctx, conn)
+
+	execCtx := plugin.DriverExecutionContext{}
+	err = conn.Query(execCtx).Exec(ctx, fmt.Sprintf("CREATE DATABASE `%s`", dbID))
+	if err != nil {
+		c.T.Fatalf("failed to create database: %v", err)
+	}
+
+	dbTeardown := func() {
+		conn, err := driver.Connect(ctx, config.DriverConfig{
+			"dsn": "clickhouse://test:test@localhost:9001/test",
+		})
+		if err != nil {
+			c.T.Fatalf("failed to connect to test database to perform cleanup: %v", err)
+		}
+		defer driver.Disconnect(ctx, conn)
+
+		err = conn.Query(execCtx).Exec(ctx, fmt.Sprintf("DROP DATABASE `%s`", dbID))
+		if err != nil {
+			c.T.Fatalf("failed to drop database %v", err)
+		}
+	}
+	c.Files(
+		"config.fyml",
+		fmt.Sprintf(`
+apiVersion: drivers/v1
+kind: Driver
+metadata:
+  name: test
+spec:
+  driver: clickhouse
+  config:
+    dsn: clickhouse://test:test@localhost:9001/%s
         `, dbID),
 	)
 
@@ -692,6 +744,13 @@ func tableExistsQuery(ctx context.Context, conn plugin.DriverConnection, execCtx
     ) THEN 1 ELSE 0 END;`
 		return conn.Query(execCtx).Query(ctx, q, execCtx.Prefix+name)
 
+	case "clickhouse":
+		q := `
+    SELECT toInt64(count()) FROM system.tables
+    WHERE database = currentDatabase()
+      AND name = ?`
+		return conn.Query(execCtx).Query(ctx, q, execCtx.Prefix+name)
+
 	default:
 		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
 	}
@@ -709,6 +768,30 @@ func migrationError() string {
 
 	case "mysql", "mariadb":
 		return `Error 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1`
+
+	case "clickhouse":
+		return `code: 62, message: Syntax error: failed at position 13 (end of query): ;. Expected one of: IF NOT EXISTS, compound identifier, identifier`
+
+	default:
+		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))
+	}
+}
+
+func migrationDownError() string {
+	testPluginDriver := os.Getenv("TEST_DRIVER")
+
+	switch testPluginDriver {
+	case "postgresql":
+		return `ERROR: syntax error at or near ";" (SQLSTATE 42601)`
+
+	case "sqlite":
+		return `SQL logic error: near ";": syntax error (1)`
+
+	case "mysql", "mariadb":
+		return `Error 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1`
+
+	case "clickhouse":
+		return `code: 62, message: Syntax error: failed at position 11 (end of query): ;. Expected one of: IF EXISTS, IF EMPTY, name list, list of elements, compound identifier, identifier`
 
 	default:
 		panic(fmt.Errorf("unhandled test driver: %s", testPluginDriver))

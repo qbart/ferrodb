@@ -351,6 +351,7 @@ func (a *App) Run(args []string) int {
 				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'sqlite:/path/to/db.sqlite'")
 				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'mysql:user:pass@tcp(localhost:3306)/mydb'")
 				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'mariadb:user:pass@tcp(localhost:3306)/mydb'")
+				fmt.Fprintln(cmd.Root().Writer, "  ferro ui --raw 'clickhouse:clickhouse://user:pass@localhost:9000/mydb'")
 				return nil
 			}
 

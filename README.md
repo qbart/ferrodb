@@ -2,6 +2,8 @@
 
 FerroDB is a database management tool. Focused on explicit, auditable schema migrations with built-in terminal browser.
 
+Currently supported databases: PostgreSQL, MySQL, SQLite, Clickhouse.
+
 <img src="./res/ferrodb.svg" width="64" />
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/qbart/krab)](https://goreportcard.com/report/github.com/qbart/ferrodb)
@@ -15,31 +17,17 @@ FerroDB is a database management tool. Focused on explicit, auditable schema mig
 - [ ] manual audit fixing
 - [ ] documentation
 
-## Drivers
-
-- [x] PostgreSQL
-- [x] SQLite
-- [x] MySQL / MariaDB
-- [ ] DuckDB
-- [ ] Clickhouse
-
-## Browser Drivers
-
-- [x] PostgreSQL
-- [x] SQLite
-- [x] MySQL / MariaDB
-- [ ] DuckDB
-- [ ] Clickhouse
-
 ## On hold
 
 Drivers:
 
+- [ ] DuckDB (needs CGO, will be done later)
 - [ ] MSSQL (no unless high demand)
 - [ ] Oracle (no unless high demand)
 
 Browser:
 
+- [ ] DuckDB (needs CGO, will be done later)
 - [ ] MSSQL (no unless high demand)
 - [ ] Oracle (no unless high demand)
 
