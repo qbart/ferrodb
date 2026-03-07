@@ -1,3 +1,7 @@
+.PHONY: test.mariadb
+test.mariadb:
+	CGO_ENABLED=0 TEST_DRIVER=mariadb go test ./...
+
 .PHONY: test.mysql
 test.mysql:
 	CGO_ENABLED=0 TEST_DRIVER=mysql go test ./...

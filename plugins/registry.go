@@ -51,12 +51,14 @@ func (r *Registry) GetBrowser(name string) (plugin.Browser, error) {
 
 func (r *Registry) RegisterAll() {
 	r.Register("null", NewNullDriver())
-	r.Register("sqlite", NewSQLiteDriver())
 	r.Register("testcontainer/postgresql", testcontainers.NewTestContainerPostgreSQLDriver())
 	r.Register("postgresql", NewPostgreSQLDriver())
+	r.Register("sqlite", NewSQLiteDriver())
 	r.Register("mysql", NewMySQLDriver())
+	r.Register("mariadb", NewMySQLDriver())
 
 	r.RegisterBrowser("postgresql", NewPostgreSQLBrowser(NewPostgreSQLDriver()))
 	r.RegisterBrowser("sqlite", NewSQLiteBrowser(NewSQLiteDriver()))
 	r.RegisterBrowser("mysql", NewMySQLBrowser(NewMySQLDriver()))
+	r.RegisterBrowser("mariadb", NewMySQLBrowser(NewMySQLDriver()))
 }

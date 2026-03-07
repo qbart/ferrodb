@@ -18,8 +18,19 @@ services:
       - MYSQL_USER=test
       - MYSQL_PASSWORD=test
 
+  mariadb:
+    image: mariadb
+    restart: always
+    environment:
+      - MARIADB_ROOT_PASSWORD=test
+      - MARIADB_DATABASE=test
+      - MARIADB_USER=test
+      - MARIADB_PASSWORD=test
+    ports:
+      - 3309:3306
+
   clickhouse_test:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server
     ports:
       - "9001:9000"
     environment:

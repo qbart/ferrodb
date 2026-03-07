@@ -38,6 +38,16 @@ jobs:
           MYSQL_USER: test
           MYSQL_PASSWORD: test
 
+      mariadb:
+        image: mariadb
+        ports:
+          - 3309:3306
+        env:
+          MARIADB_ROOT_PASSWORD: test
+          MARIADB_DATABASE: test
+          MARIADB_USER: test
+          MARIADB_PASSWORD: test
+
     steps:
       - uses: actions/checkout@v5
 
