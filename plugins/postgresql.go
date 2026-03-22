@@ -48,6 +48,8 @@ func (d *PostgreSQLDriver) Disconnect(ctx context.Context, conn plugin.DriverCon
 	return nil
 }
 
+func (d *PostgreSQLDriver) IsNamespaceSupported() bool { return true }
+
 func (c *PostgreSQLDriverConnection) UpsertAuditLogTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
 	columns := []string{
 		c.sqlColumnDefinition(&plugin.DriverAuditColumnID),
@@ -201,7 +203,10 @@ func (c *PostgreSQLDriverConnection) UnlockAuditLog(ctx context.Context, execCtx
 }
 
 func (c *PostgreSQLDriverConnection) Query(execCtx plugin.DriverExecutionContext) plugin.DriverQuery {
-	return &PostgreSQLQuery{conn: c, tx: nil}
+	if execCtx.Schema != "" {
+		c.Conn.Exec(context.Background(), fmt.Sprintf("SET search_path TO %s", pgx.Identifier{execCtx.Schema}.Sanitize()))
+	}
+	return &PostgreSQLQuery{conn: c, tx: nil, execCtx: execCtx}
 }
 
 func (c *PostgreSQLDriverConnection) quoteIdentifier(ident string) string {
@@ -238,8 +243,9 @@ func (c *PostgreSQLDriverConnection) sqlTableName(execCtx plugin.DriverExecution
 }
 
 type PostgreSQLQuery struct {
-	conn *PostgreSQLDriverConnection
-	tx   pgx.Tx
+	conn    *PostgreSQLDriverConnection
+	tx      pgx.Tx
+	execCtx plugin.DriverExecutionContext
 }
 
 func (q *PostgreSQLQuery) Exec(ctx context.Context, query string, args ...any) error {
@@ -288,8 +294,9 @@ func (q *PostgreSQLQuery) Begin(ctx context.Context) (plugin.DriverQuery, error)
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	return &PostgreSQLQuery{
-		conn: q.conn,
-		tx:   tx,
+		conn:    q.conn,
+		tx:      tx,
+		execCtx: q.execCtx,
 	}, nil
 }
 

@@ -87,6 +87,8 @@ func (d *TestContainerPostgreSQLDriver) Disconnect(ctx context.Context, conn plu
 	return nil
 }
 
+func (d *TestContainerPostgreSQLDriver) IsNamespaceSupported() bool { return true }
+
 func (c *TestContainerPostgreSQLDriverConnection) UpsertAuditLogTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
 	columns := []string{
 		c.sqlColumnDefinition(&plugin.DriverAuditColumnID),

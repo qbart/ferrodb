@@ -27,6 +27,8 @@ func (d *NullDriver) Disconnect(ctx context.Context, conn plugin.DriverConnectio
 	return ErrDriverNotSelected
 }
 
+func (d *NullDriver) IsNamespaceSupported() bool { return false }
+
 type NullDriverConnection struct {
 	plugin.DriverConnection
 }

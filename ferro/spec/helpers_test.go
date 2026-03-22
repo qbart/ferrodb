@@ -547,6 +547,20 @@ func (m *cliMock) Runner() *run.Runner {
 	return run.New(filesystem, templates, registry, m.app.Logger, m.clockMock)
 }
 
+func (m *cliMock) IsNamespaceSupported() bool {
+    driver := "test"
+	runner := m.Runner()
+	config, err := runner.UseConfig()
+	if err != nil {
+		m.T.Fatalf("cannot use config: %v", err)
+	}
+	instance, err := runner.UseDriver(config, driver)
+	if err != nil {
+		m.T.Fatalf("cannot use driver: %v", err)
+	}
+	return instance.Driver.IsNamespaceSupported()
+}
+
 func (m *cliMock) Audit(driver string, set string) *assertAudit {
 	result, err := m.Runner().ExecuteMigrateAudit(context.Background(), &run.CommandAudit{
 		Driver:   driver,

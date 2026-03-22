@@ -34,7 +34,7 @@ type MigrateAuditResult struct {
 }
 
 func (m *Migrator) MigrateAudit(ctx context.Context, cfg *config.Config, opts MigrateAuditOptions) (*MigrateAuditResult, error) {
-	m.logger.WriteSuccess("Executing Migrate.Audit with Driver=%s, Set=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name)
+	m.logger.WriteSuccess("Executing Migrate.Audit with Driver=%s, Set=%s (%s)", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Set.Spec.Namespace.Schema)
 
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
@@ -91,7 +91,7 @@ type MigrateFixUpResult struct {
 }
 
 func (m *Migrator) MigrateFixUp(ctx context.Context, cfg *config.Config, opts MigrateFixUpOptions) (*MigrateFixUpResult, error) {
-	m.logger.WriteSuccess("Executing Migrate.Fix with Driver=%s, Set=%s, Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Version)
+	m.logger.WriteSuccess("Executing Migrate.Fix with Driver=%s, Set=%s (%s), Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Set.Spec.Namespace.Schema, opts.Version)
 
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
@@ -167,7 +167,7 @@ type MigrateFixDownOptions struct {
 type MigrateFixDownResult struct{}
 
 func (m *Migrator) MigrateFixDown(ctx context.Context, cfg *config.Config, opts MigrateFixDownOptions) (*MigrateFixDownResult, error) {
-	m.logger.WriteSuccess("Executing Migrate.Fix with Driver=%s, Set=%s, Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Version)
+	m.logger.WriteSuccess("Executing Migrate.Fix with Driver=%s, Set=%s (%s), Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Set.Spec.Namespace.Schema, opts.Version)
 
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
@@ -243,7 +243,7 @@ type MigrateUpResult struct {
 }
 
 func (m *Migrator) MigrateUp(ctx context.Context, cfg *config.Config, opts MigrateUpOptions) (*MigrateUpResult, error) {
-	m.logger.WriteSuccess("Executing Migrate.Up with Driver=%s, Set=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name)
+	m.logger.WriteSuccess("Executing Migrate.Up with Driver=%s, Set=%s (%s)", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Set.Spec.Namespace.Schema)
 
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
@@ -369,7 +369,7 @@ type MigrateDownResult struct {
 }
 
 func (m *Migrator) MigrateDown(ctx context.Context, cfg *config.Config, opts MigrateDownOptions) (*MigrateDownResult, error) {
-	m.logger.WriteSuccess("Executing Migrate.Down with Driver=%s, Set=%s, Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Version)
+	m.logger.WriteSuccess("Executing Migrate.Down with Driver=%s, Set=%s (%s), Version=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Set.Spec.Namespace.Schema, opts.Version)
 
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,
@@ -502,7 +502,7 @@ type MigrationStatusResultSingle struct {
 }
 
 func (m *Migrator) MigrateStatus(ctx context.Context, cfg *config.Config, opts MigrateStatusOptions) (*MigrateStatusResult, error) {
-	m.logger.WriteSuccess("Executing Migrate.Status with Driver=%s, Set=%s", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name)
+	m.logger.WriteSuccess("Executing Migrate.Status with Driver=%s, Set=%s (%s)", opts.Driver.Config.Metadata.Name, opts.Set.Metadata.Name, opts.Set.Spec.Namespace.Schema)
 
 	nav := NewNavigator(opts.Driver, cfg, plugin.DriverExecutionContext{
 		Prefix: opts.Set.Spec.Namespace.Prefix,

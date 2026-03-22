@@ -105,6 +105,8 @@ func (d *SQLiteDriver) Disconnect(ctx context.Context, conn plugin.DriverConnect
 	return nil
 }
 
+func (d *SQLiteDriver) IsNamespaceSupported() bool { return false }
+
 func (c *SQLiteDriverConnection) UpsertAuditLogTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
 	columns := []string{
 		sqliteColumnDefinition(&plugin.DriverAuditColumnID),

@@ -51,6 +51,8 @@ func (d *ClickHouseDriver) Disconnect(ctx context.Context, conn plugin.DriverCon
 	return nil
 }
 
+func (d *ClickHouseDriver) IsNamespaceSupported() bool { return false }
+
 func (c *ClickHouseDriverConnection) UpsertAuditLogTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
 	columns := []string{
 		chColumnDefinition(&plugin.DriverAuditColumnID),

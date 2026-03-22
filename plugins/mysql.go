@@ -58,6 +58,8 @@ func (d *MySQLDriver) Disconnect(ctx context.Context, conn plugin.DriverConnecti
 	return nil
 }
 
+func (d *MySQLDriver) IsNamespaceSupported() bool { return false }
+
 func (c *MySQLDriverConnection) UpsertAuditLogTable(ctx context.Context, execCtx plugin.DriverExecutionContext) error {
 	columns := []string{
 		mysqlColumnDefinition(&plugin.DriverAuditColumnID),

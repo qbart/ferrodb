@@ -13,9 +13,10 @@ Currently supported databases: PostgreSQL, MySQL, SQLite, Clickhouse (standalone
 ## Roadmap
 
 - [ ] checksum handling and operation
-- [ ] drivers (in progress)
 - [ ] manual audit fixing
+- [ ] schema validation
 - [ ] documentation
+
 
 ## On hold
 

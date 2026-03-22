@@ -97,6 +97,7 @@ type DriverInstance struct {
 type Driver interface {
 	Connect(ctx context.Context, config config.DriverConfig) (DriverConnection, error)
 	Disconnect(ctx context.Context, conn DriverConnection) error
+	IsNamespaceSupported() bool
 }
 
 type DriverConnection interface {
