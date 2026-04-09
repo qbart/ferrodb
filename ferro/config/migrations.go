@@ -5,9 +5,26 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/qbart/ys"
 )
 
 // Migration
+
+var MigrationSchema = ys.Object(
+	ys.Required("apiVersion", ys.String()),
+	ys.Required("kind", ys.String()),
+	ys.Required("metadata", ys.Object(
+		ys.Required("name", ys.String()),
+	)),
+	ys.Required("spec", ys.Object(
+		ys.Optional("namespace", ys.Object(
+			ys.Optional("name", ys.String()),
+			ys.Optional("prefix", ys.String()),
+		)),
+		ys.Required("migrations", ys.Array(ys.String())),
+	)),
+)
 
 type Migration struct {
 	Path     string        `yaml:"-"`
