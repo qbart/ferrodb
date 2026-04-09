@@ -3,8 +3,11 @@ package config
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/qbart/ferrodb/fmtx"
+	"github.com/qbart/ys"
 	"gopkg.in/yaml.v3"
 )
 
@@ -83,6 +86,10 @@ func (p *Parser) parseMigrationsV1(file *ParsedFile, chunk *ParsedChunk) error {
 
 	case "MigrationSet":
 		var migrationSet MigrationSet
+        err := SchemaValidate(file.Path, chunk.Raw, MigrationSetSchema)
+		if err != nil {
+			return err
+		}
 		if err := yaml.Unmarshal(chunk.Raw, &migrationSet); err != nil {
 			return fmt.Errorf("failed to parse MigrationSet: %w\n%s", err, string(chunk.Raw))
 		}
@@ -110,5 +117,27 @@ func (p *Parser) parseDriversV1(file *ParsedFile, chunk *ParsedChunk) error {
 		return fmt.Errorf("unsupported kind: %s (%s)", chunk.Header.Kind, file.Path)
 	}
 
+	return nil
+}
+
+func SchemaValidate(path string, raw []byte, schema ys.Schema) error {
+	result, err := ys.Validate(raw, schema)
+	if err != nil {
+		return fmt.Errorf("yaml schema validation error: %v", err)
+	}
+	if !result.OK {
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("yaml schema validation errors for %s:\n", path))
+		for _, r := range result.Errors {
+			sb.WriteString("• ")
+			sb.WriteString(r.Message)
+			sb.WriteString(" (line: ")
+			sb.WriteString(strconv.Itoa(r.Line))
+			sb.WriteString(", yaml path: ")
+			sb.WriteString(r.Path)
+			sb.WriteString(")\n")
+		}
+		return fmt.Errorf(sb.String())
+	}
 	return nil
 }
