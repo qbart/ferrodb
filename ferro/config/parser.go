@@ -77,6 +77,9 @@ func (p *Parser) parseMigrationsV1(file *ParsedFile, chunk *ParsedChunk) error {
 	switch chunk.Header.Kind {
 	case "Migration":
 		var migration Migration
+		if err := SchemaValidate(file.Path, chunk.Raw, MigrationSchema); err != nil {
+			return err
+		}
 		if err := yaml.Unmarshal(chunk.Raw, &migration); err != nil {
 			return fmt.Errorf("failed to parse Migration: %w\n%s", err, string(chunk.Raw))
 		}
@@ -107,6 +110,9 @@ func (p *Parser) parseDriversV1(file *ParsedFile, chunk *ParsedChunk) error {
 	switch chunk.Header.Kind {
 	case "Driver":
 		var driver Driver
+		if err := SchemaValidate(file.Path, chunk.Raw, DriverSchema); err != nil {
+			return err
+		}
 		if err := yaml.Unmarshal(chunk.Raw, &driver); err != nil {
 			return fmt.Errorf("failed to parse Driver: %w\n%s", err, string(chunk.Raw))
 		}

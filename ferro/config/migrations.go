@@ -125,6 +125,29 @@ func (m *Migration) Validate() *Errors {
 	return errors
 }
 
+var MigrationSchema = ys.Object(
+	ys.Required("apiVersion", ys.String()),
+	ys.Required("kind", ys.String()),
+	ys.Required("metadata", ys.Object(
+		ys.Required("name", ys.String()),
+		ys.Optional("description", ys.String()),
+	)),
+	ys.Required("spec", ys.Object(
+		ys.Required("version", ys.String()),
+		ys.Optional("transaction", ys.Bool()),
+		ys.Required("run", ys.Object(
+			ys.Required("up", ys.Object(
+				ys.Optional("sql", ys.String()),
+				ys.Optional("file", ys.String()),
+			)),
+			ys.Required("down", ys.Object(
+				ys.Optional("sql", ys.String()),
+				ys.Optional("file", ys.String()),
+			)),
+		)),
+	)),
+)
+
 // MigrationSet
 
 var MigrationSetSchema = ys.Object(
@@ -132,10 +155,11 @@ var MigrationSetSchema = ys.Object(
 	ys.Required("kind", ys.String()),
 	ys.Required("metadata", ys.Object(
 		ys.Required("name", ys.String()),
+		ys.Optional("description", ys.String()),
 	)),
 	ys.Required("spec", ys.Object(
 		ys.Optional("namespace", ys.Object(
-			ys.Optional("name", ys.String()),
+			ys.Optional("schema", ys.String()),
 			ys.Optional("prefix", ys.String()),
 		)),
 		ys.Required("migrations", ys.Array(ys.String())),

@@ -1,6 +1,23 @@
 package config
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/qbart/ys"
+)
+
+var DriverSchema = ys.Object(
+	ys.Required("apiVersion", ys.String()),
+	ys.Required("kind", ys.String()),
+	ys.Required("metadata", ys.Object(
+		ys.Required("name", ys.String()),
+		ys.Optional("description", ys.String()),
+	)),
+	ys.Required("spec", ys.Object(
+		ys.Required("driver", ys.String()),
+		ys.Optional("config", ys.Any()),
+	)),
+)
 
 // Driver
 
