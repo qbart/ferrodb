@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
 	"github.com/qbart/ferrodb/fmtx"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -22,7 +21,7 @@ type Container struct {
 func (c *Container) Start(ctx context.Context) (string, func(ctx context.Context), error) {
 	req := testcontainers.ContainerRequest{
 		Image:      c.Image,
-		WaitingFor: wait.ForListeningPort(nat.Port(fmt.Sprintf("%s/tcp", c.Port))),
+		WaitingFor: wait.ForListeningPort(fmt.Sprintf("%s/tcp", c.Port)),
 		Env:        c.Env,
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.AutoRemove = true
